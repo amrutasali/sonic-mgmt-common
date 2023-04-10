@@ -862,46 +862,6 @@ func dbTableFromUriGet(d *db.DB, ygRoot *ygot.GoStruct, oper Operation, uri stri
 	return tableName, err
 }
 
-/* This function is used to get the DB Key using only the annotation at the given uri
-   This is not used to get the key if you need to derive the key from its parent lists. Use xpathKeyExtract in that case */
-/*
-func dbKeyFromAnnotGet(d *db.DB, ygRoot *ygot.GoStruct, oper int, URI string, requestUri string, subOpDataMap map[int]*RedisDbMap, txCache interface{}) (string, error) {
-	dbKey := ""
-	var err error
-	cdb := db.ConfigDB
-	var dbs [db.MaxDB]*db.DB
-
-	 xPath, _, _ := XfmrRemoveXPATHPredicates(uri)
-	 xpathInfo, ok := xYangSpecMap[xPath]
-	 if !ok {
-		 log.Errorf("No entry found in xYangSpecMap for xpath %v.", xPath)
-		 return dbKey, err
-	 }
-
-         if len(xpathInfo.xfmrKey) > 0  {
-		 xfmrFuncName := yangToDbXfmrFunc(xpathInfo.xfmrKey)
-		 inParams := formXfmrInputRequest(d, dbs, cdb, ygRoot, uri, requestUri, oper, "", nil, subOpDataMap, nil, txCache)
-		 if oper == GET {
-			 ret, err := XlateFuncCall(xfmrFuncName, inParams)
-			 if err != nil {
-				 return dbKey, err
-			 }
-			 if ret != nil {
-				 dbKey = ret[0].Interface().(string)
-			 }
-		 } else {
-			 ret, err := keyXfmrHandler(inParams, xpathInfo.xfmrKey)
-			 if (err != nil) {
-				 return dbKey, err
-			 }
-			 dbKey = ret
-		 }
-         } else if xpathInfo.keyName != nil {
-                 dbKey += *xpathInfo.keyName
-         }
-	return dbKey, err
-}
-*/
 func sonicXpathKeyExtract(path string) (string, string, string) {
 	xfmrLogDebug("In uri(%v)", path)
 	xpath, keyStr, tableName, fldNm := "", "", "", ""
