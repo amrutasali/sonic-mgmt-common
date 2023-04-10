@@ -336,8 +336,6 @@ func GetdbNameToIndex(dbName string) DBNum {
 		dbIndex = AsicDB
 	case "COUNTERS_DB":
 		dbIndex = CountersDB
-		//        case "LOGLEVEL_DB": // Uncomment when DB changes are added
-		//                dbIndex = LogLevelDB
 	case "CONFIG_DB":
 		dbIndex = ConfigDB
 	case "FLEX_COUNTER_DB":
@@ -346,8 +344,6 @@ func GetdbNameToIndex(dbName string) DBNum {
 		dbIndex = StateDB
 	case "ERROR_DB":
 		dbIndex = ErrorDB
-		//        case "EVENT_DB":
-		//                dbIndex = EventDB
 	}
 	return dbIndex
 }
