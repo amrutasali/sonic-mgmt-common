@@ -17,7 +17,7 @@ module sonic-xfmr-test {
 			"Initial revision of Sonic transformer test yang.";
 	}
 
-	container sonic-test {
+	container sonic-xfmr-test {
 
 		container TEST_SENSOR_GROUP {
 
@@ -141,6 +141,21 @@ module sonic-xfmr-test {
 					type string;
 				}       
                                 
+                                leaf description {
+                                        type string;
+                                }
+                        }
+                }
+
+                container TEST_SENSOR_MODE_TABLE {
+
+                        list TEST_SENSOR_MODE_TABLE_LIST {
+                                key "mode";
+
+                                leaf mode {
+                                        type string;
+                                }
+
                                 leaf description {
                                         type string;
                                 }

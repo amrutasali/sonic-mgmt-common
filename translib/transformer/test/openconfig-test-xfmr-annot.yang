@@ -22,7 +22,25 @@ module openconfig-test-xfmr-annot {
       }
     }
 
+    deviation /oc-test-xfmr:test-xfmr/oc-test-xfmr:test-sensor-groups/oc-test-xfmr:test-sensor-group/oc-test-xfmr:config/oc-test-xfmr:id {
+      deviate add {
+            sonic-ext:field-transformer "test_sensor_group_id_field_xfmr";
+      }
+    }
+
     deviation /oc-test-xfmr:test-xfmr/oc-test-xfmr:test-sensor-groups/oc-test-xfmr:test-sensor-group/oc-test-xfmr:config/oc-test-xfmr:group-colors {
+      deviate add {
+	sonic-ext:field-name "colors";
+      }
+    }
+
+    deviation /oc-test-xfmr:test-xfmr/oc-test-xfmr:test-sensor-groups/oc-test-xfmr:test-sensor-group/oc-test-xfmr:state/oc-test-xfmr:id {
+      deviate add {
+            sonic-ext:field-transformer "test_sensor_group_id_field_xfmr";
+      }
+    }
+
+    deviation /oc-test-xfmr:test-xfmr/oc-test-xfmr:test-sensor-groups/oc-test-xfmr:test-sensor-group/oc-test-xfmr:state/oc-test-xfmr:group-colors {
       deviate add {
 	sonic-ext:field-name "colors";
       }
@@ -48,9 +66,21 @@ module openconfig-test-xfmr-annot {
       }
     }
 
+    deviation /oc-test-xfmr:test-xfmr/oc-test-xfmr:test-sensor-groups/oc-test-xfmr:test-sensor-group/oc-test-xfmr:test-sensor-types/oc-test-xfmr:test-sensor-type/oc-test-xfmr:config/oc-test-xfmr:type {
+      deviate add {
+            sonic-ext:field-transformer "test_sensor_type_field_xfmr";
+      }
+    }
+
     deviation /oc-test-xfmr:test-xfmr/oc-test-xfmr:test-sensor-groups/oc-test-xfmr:test-sensor-group/oc-test-xfmr:test-sensor-types/oc-test-xfmr:test-sensor-type/oc-test-xfmr:config/oc-test-xfmr:exclude-filter {
       deviate add {
             sonic-ext:field-transformer "exclude_filter_field_xfmr";
+      }
+    }
+
+    deviation /oc-test-xfmr:test-xfmr/oc-test-xfmr:test-sensor-groups/oc-test-xfmr:test-sensor-group/oc-test-xfmr:test-sensor-types/oc-test-xfmr:test-sensor-type/oc-test-xfmr:state/oc-test-xfmr:type {
+      deviate add {
+            sonic-ext:field-transformer "test_sensor_type_field_xfmr";
       }
     }
 
@@ -64,6 +94,30 @@ module openconfig-test-xfmr-annot {
       deviate add {
             sonic-ext:table-name "TEST_SET_TABLE";
             sonic-ext:key-transformer "test_set_key_xfmr";
+      }
+    }
+
+    deviation /oc-test-xfmr:test-xfmr/oc-test-xfmr:test-sets/oc-test-xfmr:test-set/oc-test-xfmr:config/oc-test-xfmr:type {
+      deviate add {
+            sonic-ext:field-transformer "test_set_type_field_xfmr";
+      }
+    }
+
+    deviation /oc-test-xfmr:test-xfmr/oc-test-xfmr:test-sets/oc-test-xfmr:test-set/oc-test-xfmr:config/oc-test-xfmr:name {
+      deviate add {
+            sonic-ext:field-transformer "test_set_type_field_xfmr";
+      }
+    }
+
+    deviation /oc-test-xfmr:test-xfmr/oc-test-xfmr:test-sets/oc-test-xfmr:test-set/oc-test-xfmr:state/oc-test-xfmr:name {
+      deviate add {
+            sonic-ext:field-transformer "test_set_type_field_xfmr";
+      }
+    }
+
+    deviation /oc-test-xfmr:test-xfmr/oc-test-xfmr:test-sets/oc-test-xfmr:test-set/oc-test-xfmr:state/oc-test-xfmr:type {
+      deviate add {
+            sonic-ext:field-transformer "test_set_type_field_xfmr";
       }
     }
 
