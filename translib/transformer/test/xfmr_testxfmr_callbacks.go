@@ -222,3 +222,172 @@ var DbToYang_test_set_key_xfmr KeyXfmrDbToYang = func(inParams XfmrParams) (map[
 
 }
 
+func getTestSetRoot(s *ygot.GoStruct) *ocbinds.OpenconfigTestXfmr_TestXfmr {
+        deviceObj := (*s).(*ocbinds.Device)
+        return deviceObj.TestXfmr
+}
+
+func getTestSetKeyStrFromOCKey(setname string, settype ocbinds.E_OpenconfigTestXfmr_TEST_SET_TYPE) string {
+        //setT := settype.Map()["E_OpenconfigTestXfmr_TEST_SET_TYPE"][int64(settype)].Name
+        setT := ""
+        if settype == ocbinds.OpenconfigTestXfmr_TEST_SET_TYPE_TEST_SET_IPV4 {
+                setT = "TEST_SET_IPV4"
+        } else {
+                setT = "TEST_SET_IPV6"
+        }
+
+        return setname + "_" + setT
+}
+
+func getTestSetNameCompFromDbKey(testSetDbKey string, testSetType string) string {
+        return testSetDbKey[:strings.LastIndex(testSetDbKey, "_" + testSetType)]
+}
+
+var YangToDb_exclude_filter_field_xfmr FieldXfmrYangToDb = func(inParams XfmrParams) (map[string]string, error) {
+        res_map := make(map[string]string)
+        var err error
+        if inParams.param == nil {
+            res_map["exclude-filter"] = ""
+            return res_map, err
+        }
+        exflt, _ := inParams.param.(*string)
+        if exflt != nil {
+                res_map["exclude-filter"] = "filter_" + *exflt
+                log.Info("YangToDb_exclude_filter_field_xfmr ", res_map["exclude-filter"])
+        }
+        return res_map, err
+
+}
+
+var DbToYang_exclude_filter_field_xfmr FieldXfmrDbtoYang = func(inParams XfmrParams) (map[string]interface{}, error) {
+        var err error
+        result := make(map[string]interface{})
+        data := (*inParams.dbDataMap)[inParams.curDb]
+        log.Info("DbToYang_exclude_filter_field_xfmr", data, inParams.ygRoot)
+        pathInfo := NewPathInfo(inParams.uri)
+        sensor_type := pathInfo.Var("type")
+        tblNm := ""
+        if strings.HasPrefix(sensor_type, "sensora") {
+                tblNm = "TEST_SENSOR_A_TABLE"
+        } else if strings.HasPrefix(sensor_type, "sensorb") {
+                tblNm = "TEST_SENSOR_B_TABLE"
+        }
+
+        sensorData, ok := data[tblNm]
+        if ok {
+                sensorInst, instOk := sensorData[inParams.key]
+                if instOk {
+                        exFlt, fldOk := sensorInst.Field["exclude-filter"]
+                        if fldOk {
+                                result["exclude-filter"] = strings.Split(exFlt, "filter_")
+                                log.Info("DbToYang_exclude_filter_field_xfmr - returning %v", result["exclude-filter"])
+                        } else {
+                                return nil, tlerr.NotFound("Resource Not Found")
+                        }
+                } else {
+                        log.Info("DbToYang_exclude_filter_field_xfmr - sensor instance %v doesn't exist", inParams.key)
+                }
+        } else {
+                log.Info("DbToYang_exclude_filter_field_xfmr - Table %v does exist in db Data", tblNm)
+        }
+
+        return result, err
+}
+
+var YangToDb_test_set_type_field_xfmr FieldXfmrYangToDb = func(inParams XfmrParams) (map[string]string, error) {
+        res_map := make(map[string]string)
+        var err error
+        if inParams.param == nil {
+            res_map[TEST_SET_TYPE] = ""
+            return res_map, err
+        }
+
+        testSetType, _ := inParams.param.(ocbinds.E_OpenconfigTestXfmr_TEST_SET_TYPE)
+        log.Info("YangToDb_test_set_type_field_xfmr: ", inParams.ygRoot, " Xpath: ", inParams.uri, " Type: ", testSetType)
+        res_map[TEST_SET_TYPE] = findInMap(TEST_SET_TYPE_MAP, strconv.FormatInt(int64(testSetType), 10))
+        return res_map, err
+}
+
+var DbToYang_test_set_type_field_xfmr FieldXfmrDbtoYang = func(inParams XfmrParams) (map[string]interface{}, error) {
+        var err error
+        result := make(map[string]interface{})
+        data := (*inParams.dbDataMap)[inParams.curDb]
+        log.Info("DbToYang_test_set_type_field_xfmr", data, inParams.ygRoot)
+        oc_testSetType := findInMap(TEST_SET_TYPE_MAP, data[TEST_SET_TABLE][inParams.key].Field[TEST_SET_TYPE])
+        n, err := strconv.ParseInt(oc_testSetType, 10, 64)
+        if n == int64(ocbinds.OpenconfigTestXfmr_TEST_SET_TYPE_TEST_SET_IPV4) {
+             result[TEST_SET_TYPE] = "TEST_SET_IPV4"
+        } else {
+             result[TEST_SET_TYPE] = "TEST_SET_IPV6"
+        }
+        return result, err
+}
+
+var YangToDb_test_port_bindings_xfmr SubTreeXfmrYangToDb = func(inParams XfmrParams) (map[string]map[string]db.Value, error) {
+        var err error
+        res_map := make(map[string]map[string]db.Value)
+        testSetTableMap := make(map[string]db.Value)
+        testSetTableMapNew := make(map[string]db.Value)
+        log.Info("YangToDb_test_port_bindings_xfmr: ", inParams.ygRoot, inParams.uri)
+
+        testXfmrObj := getTestSetRoot(inParams.ygRoot)
+        if testXfmrObj.Interfaces == nil {
+                return res_map, err
+        }
+
+        testSetTs := &db.TableSpec{Name: TEST_SET_TABLE}
+        testSetKeys, err := inParams.d.GetKeys(testSetTs)
+        if err != nil {
+            return  res_map, err
+        }
+
+        for key := range testSetKeys {
+                testSetEntry, err := inParams.d.GetEntry(testSetTs, testSetKeys[key])
+                if err != nil {
+                        return res_map, err
+                }
+                testSetTableMap[(testSetKeys[key].Get(0))] = testSetEntry
+        }
+
+
+        testSetInterfacesMap := make(map[string][]string)
+        for intfId, _ := range testXfmrObj.Interfaces.Interface {
+                intf := testXfmrObj.Interfaces.Interface[intfId]
+                if intf != nil {
+                        if intf.IngressTestSets != nil && len(intf.IngressTestSets.IngressTestSet) > 0 {
+                                for inTestSetKey, _ := range intf.IngressTestSets.IngressTestSet {
+                                        testSetName := getTestSetKeyStrFromOCKey(inTestSetKey.SetName, inTestSetKey.Type)
+                                        testSetInterfacesMap[testSetName] = append(testSetInterfacesMap[testSetName], *intf.Id)
+                                        _, ok := testSetTableMap[testSetName]
+                                        if !ok {
+                                                if inParams.oper == DELETE {
+                                                        return res_map, tlerr.NotFound("Binding not found for test set  %v on %v", inTestSetKey.SetName, *intf.Id)
+                                                }
+                                        }
+                                        testSetTableMapNew[testSetName] = db.Value{Field: make(map[string]string)}
+                                }
+                        } else {
+                                for testSetKey, testSetData := range testSetTableMap {
+                                        ports := testSetData.GetList(TEST_SET_PORTS)
+                                        if contains(ports, *intf.Id) {
+                                                testSetInterfacesMap[testSetKey] = append(testSetInterfacesMap[testSetKey], *intf.Id)
+                                                testSetTableMapNew[testSetKey] = db.Value{Field: make(map[string]string)}
+                                        }
+
+                                }
+
+                        }
+                }
+        }
+        for k, _ := range testSetInterfacesMap {
+                val := testSetTableMapNew[k]
+                (&val).SetList(TEST_SET_PORTS + "@", testSetInterfacesMap[k])
+        }
+        res_map[TEST_SET_TABLE] = testSetTableMapNew
+        if inParams.invokeCRUSubtreeOnce != nil {
+                *inParams.invokeCRUSubtreeOnce = true
+        }
+        return res_map, err
+}
+
+
