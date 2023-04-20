@@ -31,6 +31,15 @@ import (
 )
 
 func init() {
+        XlateFuncBind("test_pre_xfmr", test_pre_xfmr)
+        XlateFuncBind("test_post_xfmr", test_post_xfmr)
+	XlateFuncBind("testsensor_type_tbl_xfmr", testsensor_type_tbl_xfmr)
+	XlateFuncBind("YangToDb_testsensor_type_key_xfmr", YangToDb_testsensor_type_key_xfmr)
+	XlateFuncBind("DbToYang_testsensor_type_key_xfmr", DbToYang_testsensor_type_key_xfmr)
+	XlateFuncBind("YangToDb_test_set_key_xfmr", YangToDb_test_set_key_xfmr)
+	XlateFuncBind("DbToYang_test_set_key_xfmr", DbToYang_test_set_key_xfmr)
+
+
 	XlateFuncBind("YangToDb_exclude_filter_field_xfmr", YangToDb_exclude_filter_field_xfmr)
 	XlateFuncBind("DbToYang_exclude_filter_field_xfmr", DbToYang_exclude_filter_field_xfmr)
 	XlateFuncBind("YangToDb_type_field_xfmr", YangToDb_type_field_xfmr)
@@ -48,5 +57,168 @@ const (
 var TEST_SET_TYPE_MAP = map[string]string{
 	strconv.FormatInt(int64(ocbinds.OpenconfigTestXfmr_TEST_SET_TYPE_TEST_SET_IPV4), 10): "L3",
 	strconv.FormatInt(int64(ocbinds.OpenconfigTestXfmr_TEST_SET_TYPE_TEST_SET_IPV6), 10): "L3V6",
+}
+
+var test_pre_xfmr PreXfmrFunc = func(inParams XfmrParams) error {
+        var err error
+        requestUriPath := (NewPathInfo(inParams.requestUri)).YangPath
+       	if log.V(3) {
+		log.Info("test_pre_xfmr:- Request URI path = ", requestUriPath)
+	}	
+	return err
+}
+
+var intf_post_xfmr PostXfmrFunc = func(inParams XfmrParams) (map[string]map[string]db.Value, error) {
+
+        requestUriPath := (NewPathInfo(inParams.requestUri)).YangPath
+        retDbDataMap := (*inParams.dbDataMap)[inParams.curDb]
+        log.Info("Entering intf_post_xfmr requestUriPath = ", requestUriPath)
+        return retDbDataMap, nil
+}
+
+var testsensor_type_tbl_xfmr TableXfmrFunc = func(inParams XfmrParams) ([]string, error) {
+	var tblList []string
+        pathInfo := NewPathInfo(inParams.uri)
+        groupId := pathInfo.Var("id")
+        sensorType := pathInfo.Var("type")
+
+	log.Info("testsensor_type_tbl_xfmr inParams.uri ", inParams.uri)
+
+	if len(sensorType) == 0 {
+		if inParams.oper == GET || inParams.oper == DELETE {
+			tblList = append(tblList, "TEST_SENSOR_A_TABLE")
+			tblList = append(tblList, "TEST_SENSOR_B_TABLE")
+		}
+	} else {
+		if strings.HasPrefix(name, "sensora_") {
+			tblList = append(tblList, "TEST_SENSOR_A_TABLE")
+		} else if strings.HasPrefix(name, "sensorb_") {
+			tblList = append(tblList, "TEST_SENSOR_B_TABLE")
+		}
+	}
+        log.Info("testsensor_type_tbl_xfmr tblList= ", tblList)
+	return tblList
+}
+
+var YangToDb_testsensor_type_key_xfmr KeyXfmrYangToDb = func(inParams XfmrParams) (string, error) 
+        var sensor_type_key string
+        var err error
+
+        log.Info("YangToDb_testsensor_type_key_xfmr - inParams.uri ", inParams.uri)
+
+        pathInfo := NewPathInfo(inParams.uri)
+        groupId := pathInfo.Var("id")
+        sensorType := pathInfo.Var("type")
+        if groupId == "" || sensorType == "" {
+                return sensor_type_key, err
+        }
+	if len(groupId) > 0 {
+		sensor_type := ""
+		if strings.HasPrefix(sensorType, "sensora_") {
+			sensor_type = strings.Replace(sensorType, "sensora_", "sensor_type_a_", 1)
+			sensor_type_key = groupId + "|" + sensor_type
+		} else if strings.HasPrefix(sensorType, "sensorb_") {
+			sensor_type = strings.Replace(sensorType, "sensorb_", "sensor_type_b_", 1)
+			sensor_type_key = groupId + "|" + sensor_type
+		} else {
+			err_str := "Invalid key. Key not supported."
+			err = tlerr.NotSupported(err_str)
+		}
+	}
+        log.Info("YangToDb_testsensor_type_key_xfmr returns", sensor_type_key)
+        return sensor_type_key, err
+}
+
+var DbToYang_testsensor_type_key_xfmr KeyXfmrDbToYang = func(inParams XfmrParams) (map[string]interface{}, error) {
+
+	rmap := make(map[string]interface{})
+        var err error
+        if log.V(3) {
+                log.Info("Entering DbToYang_testsensor_type_key_xfmr inParams.uri ", inParams.uri)
+        }
+        var sensorType string
+
+        if strings.Contains(inParams.key, "|") {
+                key_split := strings.Split(inParams.key, "|")
+                sensorType = key_split[1]
+		if strings.HasPrefix(sensorType, "sensor_type_a_") {
+			sensorType = strings.Replace(sensorType, "sensor_type_a_", "sensora_", 1)
+		} else if strings.HasPrefix(sensorType, "sensor_type_b_") {
+			sensorType = strings.Replace(sensorType, "sensor_type_b_", "sensorb_", 1)
+		} else {
+			sensorType = ""
+			err_str := "Invalid key. Key not supported."
+			err = tlerr.NotSupported(err_str)
+		}
+        }
+
+        rmap["type"] = sensorType
+
+        log.Info("DbToYang_testsensor_type_key_xfmr rmap ", rmap)
+        return rmap, err
+}
+
+var YangToDb_test_set_key_xfmr KeyXfmrYangToDb = func(inParams XfmrParams) (string, error) {
+
+	testSetKey := ""
+        if log.V(3) {
+                log.Info("Entering DbToYang_testsensor_type_key_xfmr inParams.uri ", inParams.uri)
+        }
+
+        pathInfo := NewPathInfo(inParams.uri)
+        testSetName := pathInfo.Var("name")
+        testSetType := pathInfo.Var("type")
+
+	if len(testSetName) > 0 && len(testSetType) > 0 {
+		testSetKey = testSetName
+	}
+        log.Info(" YangToDb_test_set_key_xfmr returns ", testSetKey)
+	return testSetKey, nil
+
+}
+
+var DbToYang_test_set_key_xfmr KeyXfmrDbToYang = func(inParams XfmrParams) (map[string]interface{}, error) {
+        rmap := make(map[string]interface{})
+        var err error
+        if log.V(3) {
+		log.Info("DbToYang_test_set_key_xfmr invoked for uri: ", inParams.uri)
+        }
+        var testSetName string
+
+        if len(inParams.key) > 0 && strings.Contains(inParams.key, "|") {
+                key_split := strings.Split(inParams.key, "|")
+                testSetName = key_split[0]
+        } else {
+                return result, errors.New("Incorrect dbKey : " + inParams.key)
+	}
+
+	data := (*inParams.dbDataMap)[inParams.curDb]
+	tblName := TEST_SET_TABLE 
+        if _, ok := data[tblName]; !ok {
+                log.Info("DbToYang_test_set_key_xfmr table not found : ", tblName)
+                return result, errors.New("table not found : " + tblName)
+        }
+
+        tsTbl := data[tblName]
+        if _, ok := tsTbl[inParams.key]; !ok {
+                log.Info("DbToYang_test_set_key_xfmr instance not found : ", inParams.key)
+                return result, errors.New("Table Instance not found : " + inParams.key)
+        }
+        tsInst := tsTbl[inParams.key]
+        typeStr, ok := tsInst.Field["type"]
+        if ok {
+        	var typeVal ocbinds.E_OpenconfigTestXfmr_TEST_SET_TYPE
+		if typeStr == "IPV4" {
+			typeVal = ocbinds.OpenconfigTestXfmr_TEST_SET_TYPE_TEST_SET_IPV4
+		} else if typeStr == "IPV6" {
+			typeVal = ocbinds.OpenconfigTestXfmr_TEST_SET_TYPE_TEST_SET_IPV6
+		}
+		result["type"] = ocbinds.E_OpenconfigTestXfmr_TEST_SET_TYPE.ΛMap(typeVal)["ocbinds.E_OpenconfigTestXfmr_TEST_SET_TYPE"][int64(typeVal)].Name
+        }	
+        rmap["name"] = testSetName
+
+        log.Info("DbToYang_testsensor_type_key_xfmr rmap ", rmap)
+        return rmap, err
+
 }
 

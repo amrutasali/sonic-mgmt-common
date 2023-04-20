@@ -61,8 +61,8 @@ module openconfig-test-xfmr-annot {
 
     deviation /oc-test-xfmr:test-xfmr/oc-test-xfmr:test-sensor-groups/oc-test-xfmr:test-sensor-group/oc-test-xfmr:test-sensor-types/oc-test-xfmr:test-sensor-type {
       deviate add {
-            sonic-ext:table-transformer "testsensor_path_tbl_xfmr";
-            sonic-ext:key-transformer "testsensor_path_key_xfmr";
+            sonic-ext:table-transformer "testsensor_type_tbl_xfmr";
+            sonic-ext:key-transformer "testsensor_type_key_xfmr";
       }
     }
 
@@ -105,13 +105,13 @@ module openconfig-test-xfmr-annot {
 
     deviation /oc-test-xfmr:test-xfmr/oc-test-xfmr:test-sets/oc-test-xfmr:test-set/oc-test-xfmr:config/oc-test-xfmr:name {
       deviate add {
-            sonic-ext:field-transformer "test_set_type_field_xfmr";
+            sonic-ext:field-transformer "test_set_name_field_xfmr";
       }
     }
 
     deviation /oc-test-xfmr:test-xfmr/oc-test-xfmr:test-sets/oc-test-xfmr:test-set/oc-test-xfmr:state/oc-test-xfmr:name {
       deviate add {
-            sonic-ext:field-transformer "test_set_type_field_xfmr";
+            sonic-ext:field-transformer "test_set_name_field_xfmr";
       }
     }
 

@@ -1,7 +1,7 @@
-module sonic-xfmr-test {
-	namespace "http://github.com/Azure/sonic-xfmr-test";
-	prefix sonic-xfmr-test;
-	yang-version 1;
+module sonic-test-xfmr {
+	namespace "http://github.com/Azure/sonic-test-xfmr";
+	prefix sonic-test-xfmr;
+	yang-version 1.1;
 
 	organization
 		"SONiC";
@@ -17,7 +17,7 @@ module sonic-xfmr-test {
 			"Initial revision of Sonic transformer test yang.";
 	}
 
-	container sonic-xfmr-test {
+	container sonic-test-xfmr {
 
 		container TEST_SENSOR_GROUP {
 
