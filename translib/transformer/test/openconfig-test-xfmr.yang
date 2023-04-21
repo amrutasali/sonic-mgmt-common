@@ -331,7 +331,7 @@ module openconfig-test-xfmr {
        sensor grouping";
       leaf type {
         type string {
-          pattern "sensora[a-zA-Z]*|sensorb[a-zA-Z]*";
+          pattern "sensora_[a-zA-Z0-9]*|sensorb_[a-zA-Z0-9]*";
         }
         description
           "Sensor type name";
@@ -403,6 +403,7 @@ module openconfig-test-xfmr {
       description
         "Reference to the test set type applied on ingress";
     }
+
   }
 
   ///////////////////

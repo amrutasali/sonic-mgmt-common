@@ -38,11 +38,11 @@ func init() {
         XlateFuncBind("test_post_xfmr", test_post_xfmr)
 
 	// Table transformer functions
-	XlateFuncBind("testsensor_type_tbl_xfmr", testsensor_type_tbl_xfmr)
+	XlateFuncBind("test_sensor_type_tbl_xfmr", test_sensor_type_tbl_xfmr)
 
 	// Key transformer functions
-	XlateFuncBind("YangToDb_testsensor_type_key_xfmr", YangToDb_testsensor_type_key_xfmr)
-	XlateFuncBind("DbToYang_testsensor_type_key_xfmr", DbToYang_testsensor_type_key_xfmr)
+	XlateFuncBind("YangToDb_test_sensor_type_key_xfmr", YangToDb_test_sensor_type_key_xfmr)
+	XlateFuncBind("DbToYang_test_sensor_type_key_xfmr", DbToYang_test_sensor_type_key_xfmr)
 	XlateFuncBind("YangToDb_test_set_key_xfmr", YangToDb_test_set_key_xfmr)
 	XlateFuncBind("DbToYang_test_set_key_xfmr", DbToYang_test_set_key_xfmr)
 
@@ -71,8 +71,8 @@ const (
 
 /* E_OpenconfigTestXfmr_TEST_SET_TYPE */
 var TEST_SET_TYPE_MAP = map[string]string{
-	strconv.FormatInt(int64(ocbinds.OpenconfigTestXfmr_TEST_SET_TYPE_TEST_SET_IPV4), 10): "L3",
-	strconv.FormatInt(int64(ocbinds.OpenconfigTestXfmr_TEST_SET_TYPE_TEST_SET_IPV6), 10): "L3V6",
+	strconv.FormatInt(int64(ocbinds.OpenconfigTestXfmr_TEST_SET_TYPE_TEST_SET_IPV4), 10): "IPV4",
+	strconv.FormatInt(int64(ocbinds.OpenconfigTestXfmr_TEST_SET_TYPE_TEST_SET_IPV6), 10): "IPV6",
 }
 
 var test_pre_xfmr PreXfmrFunc = func(inParams XfmrParams) error {
@@ -88,13 +88,13 @@ var test_post_xfmr PostXfmrFunc = func(inParams XfmrParams) (map[string]map[stri
         return retDbDataMap, nil
 }
 
-var testsensor_type_tbl_xfmr TableXfmrFunc = func(inParams XfmrParams) ([]string, error) {
+var test_sensor_type_tbl_xfmr TableXfmrFunc = func(inParams XfmrParams) ([]string, error) {
 	var tblList []string
         pathInfo := NewPathInfo(inParams.uri)
         groupId := pathInfo.Var("id")
         sensorType := pathInfo.Var("type")
 
-	log.Info("testsensor_type_tbl_xfmr inParams.uri ", inParams.uri)
+	log.Info("test_sensor_type_tbl_xfmr inParams.uri ", inParams.uri)
 
 	if len(groupId) == 0 {
 		return tblList, nil
@@ -111,15 +111,15 @@ var testsensor_type_tbl_xfmr TableXfmrFunc = func(inParams XfmrParams) ([]string
 			tblList = append(tblList, "TEST_SENSOR_B_TABLE")
 		}
 	}
-        log.Info("testsensor_type_tbl_xfmr tblList= ", tblList)
+        log.Info("test_sensor_type_tbl_xfmr tblList= ", tblList)
 	return tblList, nil
 }
 
-var YangToDb_testsensor_type_key_xfmr KeyXfmrYangToDb = func(inParams XfmrParams) (string, error) {
+var YangToDb_test_sensor_type_key_xfmr KeyXfmrYangToDb = func(inParams XfmrParams) (string, error) {
         var sensor_type_key string
         var err error
 
-        log.Info("YangToDb_testsensor_type_key_xfmr - inParams.uri ", inParams.uri)
+        log.Info("YangToDb_test_sensor_type_key_xfmr - inParams.uri ", inParams.uri)
 
         pathInfo := NewPathInfo(inParams.uri)
         groupId := pathInfo.Var("id")
@@ -140,16 +140,16 @@ var YangToDb_testsensor_type_key_xfmr KeyXfmrYangToDb = func(inParams XfmrParams
 			err = tlerr.NotSupported(err_str)
 		}
 	}
-        log.Info("YangToDb_testsensor_type_key_xfmr returns", sensor_type_key)
+        log.Info("YangToDb_test_sensor_type_key_xfmr returns", sensor_type_key)
         return sensor_type_key, err
 }
 
-var DbToYang_testsensor_type_key_xfmr KeyXfmrDbToYang = func(inParams XfmrParams) (map[string]interface{}, error) {
+var DbToYang_test_sensor_type_key_xfmr KeyXfmrDbToYang = func(inParams XfmrParams) (map[string]interface{}, error) {
 
 	rmap := make(map[string]interface{})
         var err error
         if log.V(3) {
-                log.Info("Entering DbToYang_testsensor_type_key_xfmr inParams.uri ", inParams.uri)
+                log.Info("Entering DbToYang_test_sensor_type_key_xfmr inParams.uri ", inParams.uri)
         }
         var sensorType string
 
@@ -169,7 +169,7 @@ var DbToYang_testsensor_type_key_xfmr KeyXfmrDbToYang = func(inParams XfmrParams
 
         rmap["type"] = sensorType
 
-        log.Info("DbToYang_testsensor_type_key_xfmr rmap ", rmap)
+        log.Info("DbToYang_test_sensor_type_key_xfmr rmap ", rmap)
         return rmap, err
 }
 

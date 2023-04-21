@@ -61,8 +61,8 @@ module openconfig-test-xfmr-annot {
 
     deviation /oc-test-xfmr:test-xfmr/oc-test-xfmr:test-sensor-groups/oc-test-xfmr:test-sensor-group/oc-test-xfmr:test-sensor-types/oc-test-xfmr:test-sensor-type {
       deviate add {
-            sonic-ext:table-transformer "testsensor_type_tbl_xfmr";
-            sonic-ext:key-transformer "testsensor_type_key_xfmr";
+            sonic-ext:table-transformer "test_sensor_type_tbl_xfmr";
+            sonic-ext:key-transformer "test_sensor_type_key_xfmr";
       }
     }
 
