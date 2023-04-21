@@ -318,13 +318,13 @@ var YangToDb_exclude_filter_field_xfmr FieldXfmrYangToDb = func(inParams XfmrPar
         res_map := make(map[string]string)
         var err error
         if inParams.param == nil {
-            res_map["exclude-filter"] = ""
+            res_map["exclude_filter"] = ""
             return res_map, err
         }
         exflt, _ := inParams.param.(*string)
         if exflt != nil {
-                res_map["exclude-filter"] = "filter_" + *exflt
-                log.Info("YangToDb_exclude_filter_field_xfmr ", res_map["exclude-filter"])
+                res_map["exclude_filter"] = "filter_" + *exflt
+                log.Info("YangToDb_exclude_filter_field_xfmr ", res_map["exclude_filter"])
         }
         return res_map, err
 
@@ -348,7 +348,7 @@ var DbToYang_exclude_filter_field_xfmr FieldXfmrDbtoYang = func(inParams XfmrPar
         if ok {
                 sensorInst, instOk := sensorData[inParams.key]
                 if instOk {
-                        exFlt, fldOk := sensorInst.Field["exclude-filter"]
+                        exFlt, fldOk := sensorInst.Field["exclude_filter"]
                         if fldOk {
                                 result["exclude-filter"] = strings.Split(exFlt, "filter_")
                                 log.Info("DbToYang_exclude_filter_field_xfmr - returning %v", result["exclude-filter"])
