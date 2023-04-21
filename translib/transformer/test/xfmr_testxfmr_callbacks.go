@@ -24,6 +24,7 @@ import (
         "strconv"
         "strings"
 	"errors"
+	"reflect"
 	"github.com/openconfig/ygot/ygot"
         "github.com/Azure/sonic-mgmt-common/translib/db"
         "github.com/Azure/sonic-mgmt-common/translib/ocbinds"
@@ -58,12 +59,14 @@ func init() {
 
 	//Subtree transformer function
 	XlateFuncBind("YangToDb_test_port_bindings_xfmr", YangToDb_test_port_bindings_xfmr)
-	//XlateFuncBind("DbToYang_test_port_bindings_xfmr", DbToYang_test_port_bindings_xfmr)
+	XlateFuncBind("DbToYang_test_port_bindings_xfmr", DbToYang_test_port_bindings_xfmr)
+	XlateFuncBind("Subscribe_test_port_bindings_xfmr", Subscribe_test_port_bindings_xfmr)
 }
 
 const (
 	TEST_SET_TABLE = "TEST_SET_TABLE"
 	TEST_SET_TYPE = "type"
+	TEST_SET_PORTS = "ports"
 )
 
 /* E_OpenconfigTestXfmr_TEST_SET_TYPE */
@@ -419,7 +422,7 @@ var YangToDb_test_port_bindings_xfmr SubTreeXfmrYangToDb = func(inParams XfmrPar
 
 
         testSetInterfacesMap := make(map[string][]string)
-        for intfId, _ := range testXfmrObj.Interfaces.Interface {
+	for intfId, _ := range testXfmrObj.Interfaces.Interface {
                 intf := testXfmrObj.Interfaces.Interface[intfId]
                 if intf != nil {
                         if intf.IngressTestSets != nil && len(intf.IngressTestSets.IngressTestSet) > 0 {
@@ -432,11 +435,16 @@ var YangToDb_test_port_bindings_xfmr SubTreeXfmrYangToDb = func(inParams XfmrPar
                                                         return res_map, tlerr.NotFound("Binding not found for test set  %v on %v", inTestSetKey.SetName, *intf.Id)
                                                 }
                                         }
-                                        testSetTableMapNew[testSetName] = db.Value{Field: make(map[string]string)}
+                                        if inParams.oper == DELETE {
+                                                testSetTableMapNew[testSetName] = db.Value{Field: make(map[string]string)}
+                                        } else {
+                                                testSetType := findInMap(TEST_SET_TYPE_MAP, strconv.FormatInt(int64(inTestSetKey.Type), 10))
+                                                testSetTableMapNew[testSetName] = db.Value{Field: map[string]string{"type":testSetType}}
+                                        }
                                 }
                         } else {
                                 for testSetKey, testSetData := range testSetTableMap {
-                                        ports := testSetData.GetList("TEST_SET_PORTS")
+                                        ports := testSetData.GetList(TEST_SET_PORTS)
                                         if contains(ports, *intf.Id) {
                                                 testSetInterfacesMap[testSetKey] = append(testSetInterfacesMap[testSetKey], *intf.Id)
                                                 testSetTableMapNew[testSetKey] = db.Value{Field: make(map[string]string)}
@@ -447,9 +455,9 @@ var YangToDb_test_port_bindings_xfmr SubTreeXfmrYangToDb = func(inParams XfmrPar
                         }
                 }
         }
-        for k, _ := range testSetInterfacesMap {
+	for k, _ := range testSetInterfacesMap {
                 val := testSetTableMapNew[k]
-                (&val).SetList("TEST_SET_PORTS" + "@", testSetInterfacesMap[k])
+                (&val).SetList(TEST_SET_PORTS + "@", testSetInterfacesMap[k])
         }
         res_map[TEST_SET_TABLE] = testSetTableMapNew
         if inParams.invokeCRUSubtreeOnce != nil {
@@ -458,4 +466,172 @@ var YangToDb_test_port_bindings_xfmr SubTreeXfmrYangToDb = func(inParams XfmrPar
         return res_map, err
 }
 
+var DbToYang_test_port_bindings_xfmr SubTreeXfmrDbToYang = func(inParams XfmrParams) error {
+        var err error
+        var testSetTs *db.TableSpec
+        var testSetTblMap map[string]db.Value
+        var trustIntf, trustTestSet bool
 
+        log.Info("DbToYang_test_port_bindings_xfmr")
+
+        pathInfo := NewPathInfo(inParams.uri)
+
+        testXfmrObj := getTestSetRoot(inParams.ygRoot)
+        cdb := inParams.dbs[db.ConfigDB]
+        testSetTs = &db.TableSpec{Name: TEST_SET_TABLE}
+        testSetKeys, err := cdb.GetKeys(testSetTs)
+        if err != nil {
+            return err
+        }
+        testSetTblMap = make(map[string]db.Value)
+
+        for key := range testSetKeys {
+                testSetEntry, err := cdb.GetEntry(testSetTs, testSetKeys[key])
+                if err != nil {
+                        return err
+                }
+                testSetTblMap[(testSetKeys[key]).Get(0)] = testSetEntry
+        }
+	targetUriPath, _ := getYangPathFromUri(pathInfo.Path)
+        interfaces := make(map[string]bool)
+        if isSubtreeRequest(targetUriPath, "/openconfig-test-xfmr:test-xfmr/interfaces") || isSubtreeRequest(targetUriPath, "/openconfig-test-xfmr:test-xfmr/interfaces/interface") {
+                intfSbt := testXfmrObj.Interfaces
+                if nil == intfSbt.Interface || (nil != intfSbt.Interface && len(intfSbt.Interface) == 0) {
+                        log.Info("Get request for all interfaces")
+                        for testSetKey := range testSetTblMap {
+                                testSetData := testSetTblMap[testSetKey]
+                                if len(testSetData.GetList(TEST_SET_PORTS)) > 0 {
+                                        testSetIntfs := testSetData.GetList(TEST_SET_PORTS)
+                                        for intf := range testSetIntfs {
+                                                interfaces[testSetIntfs[intf]] = true
+                                        }
+                                }
+                        }
+
+                        // No interface bindings present. Return. This is general Query ie No interface specified
+                        // by the user. We should return no error
+                        if len(interfaces) == 0 {
+                                return nil
+                        }
+                        trustIntf = true
+                        // For each binding present, create Ygot tree to process next level.
+                        ygot.BuildEmptyTree(intfSbt)
+                        for intfId := range interfaces {
+                                ptr, _ := intfSbt.NewInterface(intfId)
+                                ygot.BuildEmptyTree(ptr)
+                        }
+                } else {
+                        log.Info("Get request for specific interface")
+                }
+
+		// For each interface present, Process it. The interface present could be created as part of
+                // of the URI or created above
+                for ifName, ocIntfPtr := range intfSbt.Interface {
+                        log.Infof("Processing get request for %s", *ocIntfPtr.Id)
+                        if !trustIntf {
+                                if targetUriPath == "/openconfig-test-xfmr:test-xfmr/interfaces/interface" && strings.HasSuffix(inParams.requestUri, "]") {
+                                        ygot.BuildEmptyTree(ocIntfPtr)
+                                }
+                        }
+
+                        if nil != ocIntfPtr.Config {
+                                ocIntfPtr.Config.Id = ocIntfPtr.Id
+                        }
+                        if nil != ocIntfPtr.State {
+                                ocIntfPtr.State.Id = ocIntfPtr.Id
+                        }
+
+                        intfValPtr := reflect.ValueOf(ocIntfPtr)
+                        intfValElem := intfValPtr.Elem()
+
+                        testSets := intfValElem.FieldByName("IngressTestSets")
+                        if !testSets.IsNil() {
+                                testSet := testSets.Elem().FieldByName("IngressTestSet")
+                                if testSet.IsNil() || (!testSet.IsNil() && testSet.Len() == 0) {
+                                        log.Infof("Get all Ingress Test Sets for %s", ifName)
+
+                                        // Check if any Test Set is applied
+                                        for testSet, testSetData := range testSetTblMap {
+                                                trustTestSet = true
+                                                ports := testSetData.GetList(TEST_SET_PORTS)
+						if contains(ports, ifName) {
+                                                        testSetType := findInMap(TEST_SET_TYPE_MAP, testSetData.Get(TEST_SET_TYPE))
+                                                        n, _ := strconv.ParseInt(testSetType, 10, 64)
+                                                        testSetTypeDbkeyComp := "TEST_SET_IPV4"
+                                                        if n == int64(ocbinds.OpenconfigTestXfmr_TEST_SET_TYPE_TEST_SET_IPV6) {
+                                                             testSetTypeDbkeyComp = "TEST_SET_IPV6"
+                                                        }
+                                                        testSetName := getTestSetNameCompFromDbKey(testSet, testSetTypeDbkeyComp)
+                                                        log.Infof("Port:%v TestSetName:%v TestSetype:%v ", ifName, testSetName, testSetTypeDbkeyComp)
+                                                        testSetOrigType := convertSonicTestSetTypeToOC(testSetData.Get(TEST_SET_TYPE))
+                                                        testSet := testSets.MethodByName("NewIngressTestSet").Call([]reflect.Value{reflect.ValueOf(testSetName), reflect.ValueOf(testSetOrigType)})
+                                                        ygot.BuildEmptyTree(testSet[0].Interface().(ygot.ValidatedGoStruct))
+                                                }
+                                        }
+
+                                } else {
+                                        log.Info("Get for specific Test Set")
+                                }
+
+                                testSetMap := testSets.Elem().FieldByName("IngressTestSet")
+                                testSetMapIter := testSetMap.MapRange()
+                                for testSetMapIter.Next() {
+                                        testSetKey := testSetMapIter.Key()
+                                        testSetPtr := testSetMapIter.Value()
+
+                                        if !trustTestSet {
+                                                if targetUriPath == "/openconfig-test-xfmr:test-xfmr/interfaces/interface/ingress-test-sets/ingress-test-set" && strings.HasSuffix(inParams.requestUri, "]") {
+                                                        ygot.BuildEmptyTree(testSetPtr.Interface().(ygot.ValidatedGoStruct))
+                                                }
+                                        }
+
+                                        testSetName := testSetKey.FieldByName("SetName")
+                                        testSetType := testSetKey.FieldByName("Type")
+                                        testSetKeyStr := getTestSetKeyStrFromOCKey(testSetName.String(), testSetType.Interface().(ocbinds.E_OpenconfigTestXfmr_TEST_SET_TYPE))
+                                        testSetData, found := testSetTblMap[testSetKeyStr]
+					if found && contains(testSetData.GetList(TEST_SET_PORTS), ifName) {
+                                                testSetCfg := testSetPtr.Elem().FieldByName("Config")
+                                                if !testSetCfg.IsNil() {
+                                                        testSetCfg.Elem().FieldByName("SetName").Set(testSetPtr.Elem().FieldByName("SetName"))
+                                                        testSetCfg.Elem().FieldByName("Type").Set(testSetPtr.Elem().FieldByName("Type"))
+                                                }
+                                                testSetState := testSetPtr.Elem().FieldByName("State")
+                                                if !testSetState.IsNil() {
+                                                        testSetState.Elem().FieldByName("SetName").Set(testSetPtr.Elem().FieldByName("SetName"))
+                                                        testSetState.Elem().FieldByName("Type").Set(testSetPtr.Elem().FieldByName("Type"))
+                                                }
+
+                                        }
+                                 }
+                        }
+                }
+
+        }
+        return err
+}
+
+var Subscribe_test_port_bindings_xfmr SubTreeXfmrSubscribe = func(inParams XfmrSubscInParams) (XfmrSubscOutParams, error) {
+        var err error
+        var result XfmrSubscOutParams
+
+        pathInfo := NewPathInfo(inParams.uri)
+        targetUriPath, _ := getYangPathFromUri(pathInfo.Path)
+        print("Subscribe_test_port_bindings_xfmr targetUriPath:", targetUriPath)
+        result.isVirtualTbl = true
+        log.Info("Returning Subscribe_test_port_bindings_xfmr")
+        return result, err
+}
+
+func convertSonicTestSetTypeToOC(testSetType string) ocbinds.E_OpenconfigTestXfmr_TEST_SET_TYPE {
+        var testSetOrigType ocbinds.E_OpenconfigTestXfmr_TEST_SET_TYPE
+
+        if "IPV4" == testSetType {
+                testSetOrigType = ocbinds.OpenconfigTestXfmr_TEST_SET_TYPE_TEST_SET_IPV4
+        } else if "IPV6" == testSetType {
+                testSetOrigType = ocbinds.OpenconfigTestXfmr_TEST_SET_TYPE_TEST_SET_IPV6
+        } else {
+                log.Infof("Unknown type %v", testSetType)
+        }
+
+        return testSetOrigType
+}
