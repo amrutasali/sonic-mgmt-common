@@ -77,14 +77,14 @@ var TEST_SET_TYPE_MAP = map[string]string{
 
 var test_pre_xfmr PreXfmrFunc = func(inParams XfmrParams) error {
         var err error
-	log.Info("test_pre_xfmr:- Request URI path = ", inParams.requestUri)
+	log.Info("Entering test_pre_xfmr:- Request URI path = ", inParams.requestUri)
 	return err
 }
 
 var test_post_xfmr PostXfmrFunc = func(inParams XfmrParams) (map[string]map[string]db.Value, error) {
 
         retDbDataMap := (*inParams.dbDataMap)[inParams.curDb]
-        log.Info("Entering intf_post_xfmr requestUriPath = ", inParams.requestUri)
+	log.Info("Entering test_post_xfmr Request URI path = ", inParams.requestUri)
         return retDbDataMap, nil
 }
 
@@ -185,7 +185,7 @@ var YangToDb_test_set_key_xfmr KeyXfmrYangToDb = func(inParams XfmrParams) (stri
         testSetType := pathInfo.Var("type")
 
 	if len(testSetName) > 0 && len(testSetType) > 0 {
-		testSetKey = testSetName
+		testSetKey = testSetName +"_" + testSetType
 	}
         log.Info(" YangToDb_test_set_key_xfmr returns ", testSetKey)
 	return testSetKey, nil
@@ -199,38 +199,21 @@ var DbToYang_test_set_key_xfmr KeyXfmrDbToYang = func(inParams XfmrParams) (map[
 		log.Info("DbToYang_test_set_key_xfmr invoked for uri: ", inParams.uri)
         }
         var testSetName string
+	var testSetType string
 
-        if len(inParams.key) > 0 && strings.Contains(inParams.key, "|") {
-                key_split := strings.Split(inParams.key, "|")
-                testSetName = key_split[0]
-        } else {
+        if len(inParams.key) == 0 {
                 return rmap, errors.New("Incorrect dbKey : " + inParams.key)
 	}
 
-	data := (*inParams.dbDataMap)[inParams.curDb]
-	tblName := TEST_SET_TABLE 
-        if _, ok := data[tblName]; !ok {
-                log.Info("DbToYang_test_set_key_xfmr table not found : ", tblName)
-                return rmap, errors.New("table not found : " + tblName)
-        }
+	if strings.HasSuffix(inParams.key, "TEST_SET_IPV4") {
+		testSetType = "TEST_SET_IPV4"
+	} else if strings.HasSuffix(inParams.key, "TEST_SET_IPV6") {
+		testSetType = "TEST_SET_IPV6"
+	}
+	testSetName = getTestSetNameCompFromDbKey(inParams.key, testSetType)
 
-        tsTbl := data[tblName]
-        if _, ok := tsTbl[inParams.key]; !ok {
-                log.Info("DbToYang_test_set_key_xfmr instance not found : ", inParams.key)
-                return rmap, errors.New("Table Instance not found : " + inParams.key)
-        }
-        tsInst := tsTbl[inParams.key]
-        typeStr, ok := tsInst.Field["type"]
-        if ok {
-        	var typeVal ocbinds.E_OpenconfigTestXfmr_TEST_SET_TYPE
-		if typeStr == "IPV4" {
-			typeVal = ocbinds.OpenconfigTestXfmr_TEST_SET_TYPE_TEST_SET_IPV4
-		} else if typeStr == "IPV6" {
-			typeVal = ocbinds.OpenconfigTestXfmr_TEST_SET_TYPE_TEST_SET_IPV6
-		}
-		rmap["type"] = ocbinds.E_OpenconfigTestXfmr_TEST_SET_TYPE.ΛMap(typeVal)["ocbinds.E_OpenconfigTestXfmr_TEST_SET_TYPE"][int64(typeVal)].Name
-        }	
         rmap["name"] = testSetName
+	rmap["type"] = testSetType 
 
         log.Info("DbToYang_testsensor_type_key_xfmr rmap ", rmap)
         return rmap, err
@@ -286,7 +269,7 @@ var DbToYang_test_set_name_field_xfmr FieldXfmrDbtoYang = func(inParams XfmrPara
         if setName == "" || setType == "" {
                 return result, err
         }
-        result["type"] = setName
+        result["name"] = setName
 
         log.Info("DbToYang_test_set_name_field_xfmrreturns ", result)
 
@@ -299,14 +282,7 @@ func getTestSetRoot(s *ygot.GoStruct) *ocbinds.OpenconfigTestXfmr_TestXfmr {
 }
 
 func getTestSetKeyStrFromOCKey(setname string, settype ocbinds.E_OpenconfigTestXfmr_TEST_SET_TYPE) string {
-        //setT := settype.Map()["E_OpenconfigTestXfmr_TEST_SET_TYPE"][int64(settype)].Name
-        setT := ""
-        if settype == ocbinds.OpenconfigTestXfmr_TEST_SET_TYPE_TEST_SET_IPV4 {
-                setT = "TEST_SET_IPV4"
-        } else {
-                setT = "TEST_SET_IPV6"
-        }
-
+        setT := ocbinds.E_OpenconfigTestXfmr_TEST_SET_TYPE.ΛMap(settype)["ocbinds.E_OpenconfigTestXfmr_TEST_SET_TYPE"][int64(settype)].Name
         return setname + "_" + setT
 }
 
@@ -338,9 +314,9 @@ var DbToYang_exclude_filter_field_xfmr FieldXfmrDbtoYang = func(inParams XfmrPar
         pathInfo := NewPathInfo(inParams.uri)
         sensor_type := pathInfo.Var("type")
         tblNm := ""
-        if strings.HasPrefix(sensor_type, "sensora") {
+        if strings.HasPrefix(sensor_type, "sensora_") {
                 tblNm = "TEST_SENSOR_A_TABLE"
-        } else if strings.HasPrefix(sensor_type, "sensorb") {
+        } else if strings.HasPrefix(sensor_type, "sensorb_") {
                 tblNm = "TEST_SENSOR_B_TABLE"
         }
 
@@ -350,7 +326,7 @@ var DbToYang_exclude_filter_field_xfmr FieldXfmrDbtoYang = func(inParams XfmrPar
                 if instOk {
                         exFlt, fldOk := sensorInst.Field["exclude_filter"]
                         if fldOk {
-                                result["exclude-filter"] = strings.Split(exFlt, "filter_")
+                                result["exclude-filter"] = strings.Split(exFlt, "filter_")[1]
                                 log.Info("DbToYang_exclude_filter_field_xfmr - returning %v", result["exclude-filter"])
                         } else {
                                 return nil, tlerr.NotFound("Resource Not Found")
@@ -359,7 +335,7 @@ var DbToYang_exclude_filter_field_xfmr FieldXfmrDbtoYang = func(inParams XfmrPar
                         log.Info("DbToYang_exclude_filter_field_xfmr - sensor instance %v doesn't exist", inParams.key)
                 }
         } else {
-                log.Info("DbToYang_exclude_filter_field_xfmr - Table %v does exist in db Data", tblNm)
+                log.Info("DbToYang_exclude_filter_field_xfmr - Table %v does not exist in db Data", tblNm)
         }
 
         return result, err
