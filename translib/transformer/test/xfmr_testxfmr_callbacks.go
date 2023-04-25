@@ -282,7 +282,13 @@ func getTestSetRoot(s *ygot.GoStruct) *ocbinds.OpenconfigTestXfmr_TestXfmr {
 }
 
 func getTestSetKeyStrFromOCKey(setname string, settype ocbinds.E_OpenconfigTestXfmr_TEST_SET_TYPE) string {
-        setT := ocbinds.E_OpenconfigTestXfmr_TEST_SET_TYPE.ΛMap(settype)["ocbinds.E_OpenconfigTestXfmr_TEST_SET_TYPE"][int64(settype)].Name
+        //setT := ocbinds.E_OpenconfigTestXfmr_TEST_SET_TYPE.ΛMap(settype)["ocbinds.E_OpenconfigTestXfmr_TEST_SET_TYPE"][int64(settype)].Name
+	setT := ""
+        if settype == ocbinds.OpenconfigTestXfmr_TEST_SET_TYPE_TEST_SET_IPV4 {
+                setT = "TEST_SET_IPV4"
+        } else {
+                setT = "TEST_SET_IPV6"
+        }
         return setname + "_" + setT
 }
 
@@ -592,7 +598,7 @@ var Subscribe_test_port_bindings_xfmr SubTreeXfmrSubscribe = func(inParams XfmrS
 
         pathInfo := NewPathInfo(inParams.uri)
         targetUriPath, _ := getYangPathFromUri(pathInfo.Path)
-        print("Subscribe_test_port_bindings_xfmr targetUriPath:", targetUriPath)
+        log.Info("Subscribe_test_port_bindings_xfmr targetUriPath:", targetUriPath)
         result.isVirtualTbl = true
         log.Info("Returning Subscribe_test_port_bindings_xfmr")
         return result, err
