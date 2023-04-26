@@ -109,6 +109,13 @@ module openconfig-test-xfmr-annot {
       }
     }
 
+    
+    deviation /oc-test-xfmr:test-xfmr/oc-test-xfmr:test-sets/oc-test-xfmr:test-set/oc-test-xfmr:config/oc-test-xfmr:description {
+      deviate add {
+            sonic-ext:field-transformer "test_set_description_field_xfmr";
+      }
+    }
+
     deviation /oc-test-xfmr:test-xfmr/oc-test-xfmr:test-sets/oc-test-xfmr:test-set/oc-test-xfmr:state/oc-test-xfmr:name {
       deviate add {
             sonic-ext:field-transformer "test_set_name_field_xfmr";
@@ -121,9 +128,16 @@ module openconfig-test-xfmr-annot {
       }
     }
 
+    deviation /oc-test-xfmr:test-xfmr/oc-test-xfmr:test-sets/oc-test-xfmr:test-set/oc-test-xfmr:state/oc-test-xfmr:description {
+      deviate add {
+            sonic-ext:field-transformer "test_set_description_field_xfmr";
+      }
+    }
+
     deviation /oc-test-xfmr:test-xfmr/oc-test-xfmr:interfaces {
       deviate add {
 	sonic-ext:subtree-transformer "test_port_bindings_xfmr";
+        sonic-ext:virtual-table "true";
       }
     }
 }
