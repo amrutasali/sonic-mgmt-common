@@ -22,10 +22,7 @@ TRANSLIB_TEST_BIN  = $(TRANSLIB_TEST_DIR)/translib.test
 TRANSL_DB_TEST_BIN = $(TRANSLIB_TEST_DIR)/db.test
 
 TRANSFORMER_TEST_BIN = $(TRANSLIB_TEST_DIR)/transformer.test
-SRCS  := $(shell find . -name '*.go' -not -name '*_test.go' -not -path '*/test/*' -not -path '*/ocbinds/*')
-SRCX  := $(shell find ocbinds -name '*.go' -not -name 'ocbinds_*.go')
-TRANSFORMER_TRANSLIB_SRCS = $(filter-out ./transformer/%, $(SRCS) $(SRCX))
-TRANSFORMER_SRCS = $(shell mv ./transformer/test/xfmr_testxfmr_callbacks.go ./transformer/) $(filter ./transformer/%, $(shell find . -name '*.go' -not -name '*_test.go'))
+TRANSFORMER_SRCS = $(shell cp ./transformer/test/xfmr_testxfmr_callbacks.go ./transformer/) $(filter ./transformer/%, $(shell find . -name '*.go' -not -name '*_test.go'))
 TRANSFORMER_TESTS := $(shell find . -name '*_test.go')
 TRANSFORMER_TEST_SRCS = $(filter ./transformer/test/%, $(TRANSFORMER_TESTS))
 
@@ -50,8 +47,8 @@ $(TRANSLIB_TEST_BIN): $(TRANSLIB_MAIN_SRCS) $(TRANSLIB_TEST_SRCS) $(YGOT_BINDS)
 $(TRANSL_DB_TEST_BIN) : $(TRANSL_DB_ALL_SRCS)
 	$(GO) test -mod=vendor -cover -c ../translib/db -o $@
 
-$(TRANSFORMER_TEST_BIN): $(TRANSFORMER_TEST_SRCS) $(TRANSFORMER_SRCS) $(TRANSFORMER_TRANSLIB_SRCS) $(YGOT_BINDS)
-	$(GO) test -mod=vendor -c -vet=off -cover -coverpkg=../translib/transformer ../translib/transformer/test -o $@
+$(TRANSFORMER_TEST_BIN): $(TRANSFORMER_TEST_SRCS) $(TRANSFORMER_SRCS) $(TRANSLIB_MAIN_SRCS) $(YGOT_BINDS)
+	$(GO) test -mod=vendor -c -vet=off -cover -coverpkg=../translib/transformer ../translib/transformer/test/*test.go -o $@
 
 $(YGOT_BINDS): $(YANG_FILES)
 	$(RM) $@
@@ -61,5 +58,5 @@ clean:
 	$(RM) $(YGOT_BINDS)
 	$(RM) $(TRANSLIB_PKG)
 	$(RM) -r $(TRANSLIB_TEST_DIR)
-	mv ./transformer/xfmr_testxfmr_callbacks.go ./transformer/test/
+	$(RM) ./transformer/xfmr_testxfmr_callbacks.go
 
