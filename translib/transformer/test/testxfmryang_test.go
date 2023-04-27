@@ -30,13 +30,13 @@ import (
 )
 
 func Test_node_exercising_subtree_xfmr_and_virtual_table(t *testing.T) {
-	fmt.Println("\n\n+++++++++++++ Performing Set on Yang Node Exercising Subtree-Xfmr and Virtual Table ++++++++++++")
 	var pre_req_map, expected_map, cleanuptbl map[string]interface{}
 	var url, url_body_json string
 
+	fmt.Println("\n\n+++++++++++++ Performing Set on Yang Node Exercising Subtree-Xfmr and Virtual Table ++++++++++++")
 	url = "/openconfig-test-xfmr:test-xfmr/interfaces"
 	url_body_json = "{ \"openconfig-test-xfmr:interface\": [ { \"id\": \"Eth_0\", \"config\": { \"id\": \"Eth_0\" }, \"ingress-test-sets\": { \"ingress-test-set\": [ { \"set-name\": \"TestSet_01\", \"type\": \"TEST_SET_IPV4\", \"config\": { \"set-name\": \"TestSet_01\", \"type\": \"TEST_SET_IPV4\" } } ] } } ]}"
-	expected_map = map[string]interface{}{"TEST_SET_TABLE": map[string]interface{}{"TestSet_01_TEST_SET_IPV4": map[string]interface{}{"ports@": "Eth_0", "type":"IPV4"}}}
+	expected_map = map[string]interface{}{"TEST_SET_TABLE": map[string]interface{}{"TestSet_01_TEST_SET_IPV4": map[string]interface{}{"ports@": "Eth_0", "type": "IPV4"}}}
 	cleanuptbl = map[string]interface{}{"TEST_SET_TABLE": map[string]interface{}{"TestSet_01_TEST_SET_IPV4": ""}}
 	t.Run("Test set on node exercising subtree-xfmr and virtual table.", processSetRequest(url, url_body_json, "POST", false, nil))
 	time.Sleep(1 * time.Second)
@@ -47,9 +47,9 @@ func Test_node_exercising_subtree_xfmr_and_virtual_table(t *testing.T) {
 
 	fmt.Println("\n\n+++++++++++++ Performing Delete on Yang Node Exercising Subtree-Xfmr and Virtual Table ++++++++++++")
 	pre_req_map = map[string]interface{}{"TEST_SET_TABLE": map[string]interface{}{"TestSet_01_TEST_SET_IPV4": map[string]interface{}{
-                                                                          		"ports@": "Eth_0,Eth_1,Eth_3"},
-	                                                                               "TestSet_02_TEST_SET_IPV4": map[string]interface{}{
-                                                                                        "ports@": "Eth_1,Eth_4"}}}
+		"ports@": "Eth_0,Eth_1,Eth_3"},
+		"TestSet_02_TEST_SET_IPV4": map[string]interface{}{
+			"ports@": "Eth_1,Eth_4"}}}
 	cleanuptbl = map[string]interface{}{"TEST_SET_TABLE": map[string]interface{}{"TestSet_01_TEST_SET_IPV4": "", "TestSet_02_TEST_SET_IPV4": ""}}
 	loadDB(db.ConfigDB, pre_req_map)
 	time.Sleep(1 * time.Second)
@@ -57,19 +57,18 @@ func Test_node_exercising_subtree_xfmr_and_virtual_table(t *testing.T) {
 	t.Run("Test delete on node exercising subtree-xfmr and virtual table.", processDeleteRequest(url, false))
 	time.Sleep(1 * time.Second)
 	expected_map = map[string]interface{}{"TEST_SET_TABLE": map[string]interface{}{"TestSet_01_TEST_SET_IPV4": map[string]interface{}{
-                                                                          		"ports@": "Eth_0,Eth_3"}}}
+		"ports@": "Eth_0,Eth_3"}}}
 	t.Run("Verify delete on node exercising subtree-xfmr and virtual table (TestSet_01).", verifyDbResult(rclient, "TEST_SET_TABLE|TestSet_01_TEST_SET_IPV4", expected_map, false))
 	expected_map = map[string]interface{}{"TEST_SET_TABLE": map[string]interface{}{"TestSet_02_TEST_SET_IPV4": map[string]interface{}{
-		                                                                         "ports@": "Eth_4"}}}
+		"ports@": "Eth_4"}}}
 	t.Run("Verify delete on node exercising subtree-xfmr and virtual table (TestSet_02).", verifyDbResult(rclient, "TEST_SET_TABLE|TestSet_02_TEST_SET_IPV4", expected_map, false))
 	unloadDB(db.ConfigDB, cleanuptbl)
 	time.Sleep(1 * time.Second)
 	fmt.Println("\n\n+++++++++++++ Done Performing Delete on Yang Node Exercising Subtree-Xfmr and Virtual Table ++++++++++++")
-	
 
 	fmt.Println("\n\n+++++++++++++ Performing Get on Yang Node Exercising Subtree-Xfmr and Virtual Table ++++++++++++")
 	pre_req_map = map[string]interface{}{"TEST_SET_TABLE": map[string]interface{}{"TestSet_03_TEST_SET_IPV6": map[string]interface{}{
-                                                                                        "ports@": "Eth_1"}}}
+		"ports@": "Eth_1"}}}
 
 	loadDB(db.ConfigDB, pre_req_map)
 	expected_get_json := "{\"openconfig-test-xfmr:ingress-test-set\":[{\"config\":{\"set-name\":\"TestSet_03\",\"type\":\"openconfig-test-xfmr:TEST_SET_IPV6\"},\"set-name\":\"TestSet_03\",\"state\":{\"set-name\":\"TestSet_03\",\"type\":\"openconfig-test-xfmr:TEST_SET_IPV6\"},\"type\":\"openconfig-test-xfmr:TEST_SET_IPV6\"}]}"
@@ -78,4 +77,3 @@ func Test_node_exercising_subtree_xfmr_and_virtual_table(t *testing.T) {
 	fmt.Println("\n\n+++++++++++++ Done Performing Get on Yang Node Exercising Subtree-Xfmr and Virtual Table ++++++++++++")
 
 }
-
