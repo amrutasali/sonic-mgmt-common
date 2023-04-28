@@ -90,20 +90,22 @@ var test_pre_xfmr PreXfmrFunc = func(inParams XfmrParams) error {
 
 var test_post_xfmr PostXfmrFunc = func(inParams XfmrParams) (map[string]map[string]db.Value, error) {
 
+        pathInfo := NewPathInfo(inParams.uri)
+        groupId := pathInfo.Var("id")
+
 	retDbDataMap := (*inParams.dbDataMap)[inParams.curDb]
 	log.Info("Entering test_post_xfmr Request URI path = ", inParams.requestUri)
 	if inParams.oper == UPDATE {
 		xpath, _, _ := XfmrRemoveXPATHPredicates(inParams.requestUri)
 		if xpath == "/openconfig-test-xfmr:test-xfmr/test-sensor-groups/test-sensor-group/config/color-hold-time" {
-			if _, ok := inParams.subOpDataMap[CREATE]; !ok {
-				var redisMap = new(RedisDbMap)
-				(*redisMap)[db.ConfigDB] = make(map[string]map[string]db.Value)
-				(*redisMap)[db.ConfigDB]["TEST_SENSOR_MODE_TABLE"] = make(map[string]db.Value)
-				(*redisMap)[db.ConfigDB]["TEST_SENSOR_MODE_TABLE"]["mode|test123|4567"] = db.Value{Field: make(map[string]string)}
-				(*redisMap)[db.ConfigDB]["TEST_SENSOR_MODE_TABLE"]["mode|test123|4567"].Field["NULL"] = "NULL"
-				inParams.subOpDataMap[CREATE] = redisMap
-
-                        }
+				holdTime := retDbDataMap["TEST_SENSOR_GROUP"][groupId].Field["color-hold-time"]
+				key := groupId + "|" + "sensor_type_a_post" + holdTime
+			        subOpCreateMap := make(map[db.DBNum]map[string]map[string]db.Value)
+			        subOpCreateMap[db.ConfigDB] = make(map[string]map[string]db.Value)
+				subOpCreateMap[db.ConfigDB]["TEST_SENSOR_A_TABLE"] = make(map[string]db.Value)
+				subOpCreateMap[db.ConfigDB]["TEST_SENSOR_A_TABLE"][key] = db.Value{Field: make(map[string]string)}
+				subOpCreateMap[db.ConfigDB]["TEST_SENSOR_A_TABLE"][key].Field["description_a"] = "Added instance in post xfmr"
+			        inParams.subOpDataMap[CREATE] = &subOpCreateMap
                 }
         }
 	return retDbDataMap, nil
@@ -670,17 +672,25 @@ func convertSonicTestSetTypeToOC(testSetType string) ocbinds.E_OpenconfigTestXfm
 var DbToYang_test_sensor_mode_key_xfmr SonicKeyXfmrDbToYang = func(inParams SonicXfmrParams) (map[string]interface{}, error) {
         res_map := make(map[string]interface{})
         /* from DB-key string(inParams.key) extract mode and id to fill into the res_map
-        * db key contains the separator as well eg: "mode|test123|3545"
+	* db key contains the separator as well eg: "mode:test123:3545"
          */
         log.Info("DbToYang_test_sensor_mode_key_xfmr: key", inParams.key)
         if len(inParams.key) > 0 {
                 /*split id and mode */
-                temp := strings.SplitN(inParams.key, "|", 3)
-                res_map["mode"] = temp[0] + "|" + temp[1]
-                id := temp[2]
-                i64, _ := strconv.ParseUint(id, 10, 32)
-		i32 := uint32(i64)
-                res_map["id"] = i32
+		temp := strings.SplitN(inParams.key, ":", 3)
+		if len(temp) >= 3 {
+			res_map["mode"] = temp[0] + ":" + temp[1]
+	                id := temp[2]
+			i64, _ := strconv.ParseUint(id, 10, 32)
+			i32 := uint32(i64)
+	                res_map["id"] = i32
+		} else if len(temp) == 2 {
+			res_map["mode"] = temp[0]
+			res_map["id"] = temp[1]
+		} else {
+			errStr := "Invalid Key in uri."
+			return res_map, tlerr.InvalidArgsError{Format: errStr}
+		}
         }
         log.Info("DbToYang_test_sensor_mode_key_xfmr: res_map - ", res_map)
         return res_map, nil
