@@ -85,6 +85,24 @@ var TEST_SET_TYPE_MAP = map[string]string{
 var test_pre_xfmr PreXfmrFunc = func(inParams XfmrParams) error {
 	var err error
 	log.Info("Entering test_pre_xfmr:- Request URI path = ", inParams.requestUri)
+	pathInfo := NewPathInfo(inParams.requestUri)
+	rejectReplaceNodes := []string{"/openconfig-test-xfmr:test-xfmr/interfaces",
+		"/openconfig-test-xfmr:test-xfmr/test-sensor-groups",
+		"/openconfig-test-xfmr:test-xfmr/test-sensor-types",
+		"/openconfig-test-xfmr:test-xfmr/test-sets",
+	}
+	targetUriPath, _ := getYangPathFromUri(pathInfo.Path)
+
+	if inParams.oper == REPLACE {
+		for _, rejectNode := range rejectReplaceNodes {
+			if targetUriPath == rejectNode {
+				err_str := "REPLACE not supported at this node."
+				err = tlerr.NotSupportedError{Format: err_str}
+				//err = tlerr.NotSupported(err_str)
+				break
+			}
+		}
+	}
 	return err
 }
 
@@ -305,7 +323,6 @@ func getTestSetRoot(s *ygot.GoStruct) *ocbinds.OpenconfigTestXfmr_TestXfmr {
 }
 
 func getTestSetKeyStrFromOCKey(setname string, settype ocbinds.E_OpenconfigTestXfmr_TEST_SET_TYPE) string {
-	//setT := ocbinds.E_OpenconfigTestXfmr_TEST_SET_TYPE.ΛMap(settype)["ocbinds.E_OpenconfigTestXfmr_TEST_SET_TYPE"][int64(settype)].Name
 	setT := ""
 	if settype == ocbinds.OpenconfigTestXfmr_TEST_SET_TYPE_TEST_SET_IPV4 {
 		setT = "TEST_SET_IPV4"
