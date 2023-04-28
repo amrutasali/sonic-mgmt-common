@@ -10,7 +10,6 @@ module sonic-test-xfmr-annot {
     deviation /sonic-test-xfmr:sonic-test-xfmr/sonic-test-xfmr:TEST_SENSOR_MODE_TABLE/sonic-test-xfmr:TEST_SENSOR_MODE_TABLE_LIST {
       deviate add {
 	sonic-ext:key-transformer "test_sensor_mode_key_xfmr";
-	sonic-ext:db-name "COUNTERS_DB";
       }
     }
 
