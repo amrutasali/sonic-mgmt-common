@@ -3,3 +3,4 @@ openconfig-acl.yang
 openconfig-acl-annot.yang
 openconfig-test-xfmr.yang
 openconfig-test-xfmr-annot.yang
+sonic-test-xfmr-annot.yang
