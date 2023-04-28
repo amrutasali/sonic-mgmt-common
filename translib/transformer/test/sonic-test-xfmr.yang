@@ -3,6 +3,8 @@ module sonic-test-xfmr {
 	prefix sonic-test-xfmr;
 	yang-version 1;
 
+	import sonic-extension { prefix sonic-ext; }
+
 	organization
 		"SONiC";
 
@@ -144,6 +146,7 @@ module sonic-test-xfmr {
 
                 container TEST_SENSOR_MODE_TABLE {
 			config false;
+			sonic-ext:db-name "COUNTERS_DB";
                         list TEST_SENSOR_MODE_TABLE_LIST {
                                 key "mode id";
 
