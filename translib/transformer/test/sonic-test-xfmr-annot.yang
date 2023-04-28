@@ -7,7 +7,7 @@ module sonic-test-xfmr-annot {
 
     import sonic-test-xfmr { prefix sonic-test-xfmr; }
 
-    deviation /sonic-test-xfmr:sonic-test-xfmr/sonic-test-xfmr:TEST_SENSOR_MODE_TABLE/sonic-test-xfmr:TEST_SENSOR_MODE_TABLE_LIST/sonic-test-xfmr:mode {
+    deviation /sonic-test-xfmr:sonic-test-xfmr/sonic-test-xfmr:TEST_SENSOR_MODE_TABLE/sonic-test-xfmr:TEST_SENSOR_MODE_TABLE_LIST {
       deviate add {
 	sonic-ext:key-transformer "test_sensor_mode_key_xfmr";
       }

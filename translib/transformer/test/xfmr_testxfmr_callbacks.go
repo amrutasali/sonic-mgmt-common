@@ -64,6 +64,9 @@ func init() {
 	XlateFuncBind("YangToDb_test_port_bindings_xfmr", YangToDb_test_port_bindings_xfmr)
 	XlateFuncBind("DbToYang_test_port_bindings_xfmr", DbToYang_test_port_bindings_xfmr)
 	XlateFuncBind("Subscribe_test_port_bindings_xfmr", Subscribe_test_port_bindings_xfmr)
+
+	// Sonic yang Key transformer functions
+        XlateFuncBind("DbToYang_test_sensor_mode_key_xfmr", DbToYang_test_sensor_mode_key_xfmr)
 }
 
 const (
@@ -107,6 +110,20 @@ var test_post_xfmr PostXfmrFunc = func(inParams XfmrParams) (map[string]map[stri
 
 	retDbDataMap := (*inParams.dbDataMap)[inParams.curDb]
 	log.Info("Entering test_post_xfmr Request URI path = ", inParams.requestUri)
+	if inParams.oper == UPDATE {
+		xpath, _, _ := XfmrRemoveXPATHPredicates(inParams.requestUri)
+		if xpath == "/openconfig-test-xfmr:test-xfmr/test-sensor-groups/test-sensor-group/config/color-hold-time" {
+			if _, ok := inParams.subOpDataMap[CREATE]; !ok {
+				var redisMap = new(RedisDbMap)
+				(*redisMap)[db.ConfigDB] = make(map[string]map[string]db.Value)
+				(*redisMap)[db.ConfigDB]["TEST_SENSOR_MODE_TABLE"] = make(map[string]db.Value)
+				(*redisMap)[db.ConfigDB]["TEST_SENSOR_MODE_TABLE"]["mode|test123|4567"] = db.Value{Field: make(map[string]string)}
+				(*redisMap)[db.ConfigDB]["TEST_SENSOR_MODE_TABLE"]["mode|test123|4567"].Field["NULL"] = "NULL"
+				inParams.subOpDataMap[CREATE] = redisMap
+
+                        }
+                }
+        }
 	return retDbDataMap, nil
 }
 
@@ -664,4 +681,24 @@ func convertSonicTestSetTypeToOC(testSetType string) ocbinds.E_OpenconfigTestXfm
 	}
 
 	return testSetOrigType
+}
+
+//Sonic yang key transformer functions
+var DbToYang_test_sensor_mode_key_xfmr SonicKeyXfmrDbToYang = func(inParams SonicXfmrParams) (map[string]interface{}, error) {
+        res_map := make(map[string]interface{})
+        /* from DB-key string(inParams.key) extract mode and id to fill into the res_map
+        * db key contains the separator as well eg: "mode|test123|3545"
+         */
+        log.Info("DbToYang_test_sensor_mode_key_xfmr: key", inParams.key)
+        if len(inParams.key) > 0 {
+                /*split id and mode */
+                temp := strings.SplitN(inParams.key, "|", 3)
+                res_map["mode"] = temp[0] + "|" + temp[1]
+                id := temp[2]
+                i64, _ := strconv.ParseUint(id, 10, 32)
+		i32 := uint32(i64)
+                res_map["id"] = i32
+        }
+        log.Info("DbToYang_test_sensor_mode_key_xfmr: res_map - ", res_map)
+        return res_map, nil
 }

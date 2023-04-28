@@ -145,10 +145,16 @@ module sonic-test-xfmr {
                 container TEST_SENSOR_MODE_TABLE {
 
                         list TEST_SENSOR_MODE_TABLE_LIST {
-                                key "mode";
+                                key "mode id";
 
                                 leaf mode {
-                                        type string;
+					type string {
+						pattern "mode|[a-zA-Z0-9]*";
+					}
+                                }
+
+                                leaf id {
+                                        type uint32;
                                 }
 
                                 leaf description {
