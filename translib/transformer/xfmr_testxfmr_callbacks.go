@@ -16,7 +16,9 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-//go:build !campus_pkg
+//go:build test
+// +build test
+
 
 package transformer
 
