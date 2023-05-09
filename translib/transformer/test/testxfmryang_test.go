@@ -26,7 +26,6 @@ import (
 
 	"github.com/Azure/sonic-mgmt-common/translib/db"
 	"github.com/Azure/sonic-mgmt-common/translib/tlerr"
-	//"github.com/Azure/sonic-mgmt-common/cvl"
 )
 
 func Test_node_exercising_subtree_xfmr_and_virtual_table(t *testing.T) {
