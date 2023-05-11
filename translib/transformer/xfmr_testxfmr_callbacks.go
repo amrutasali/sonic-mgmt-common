@@ -100,7 +100,6 @@ var test_pre_xfmr PreXfmrFunc = func(inParams XfmrParams) error {
 			if targetUriPath == rejectNode {
 				err_str := "REPLACE not supported at this node."
 				err = tlerr.NotSupportedError{Format: err_str}
-				//err = tlerr.NotSupported(err_str)
 				break
 			}
 		}
@@ -475,35 +474,34 @@ var YangToDb_test_port_bindings_xfmr SubTreeXfmrYangToDb = func(inParams XfmrPar
 	testSetInterfacesMap := make(map[string][]string)
 	for intfId, _ := range testXfmrObj.Interfaces.Interface {
 		intf := testXfmrObj.Interfaces.Interface[intfId]
-		if intf != nil {
-			if intf.IngressTestSets != nil && len(intf.IngressTestSets.IngressTestSet) > 0 {
-				for inTestSetKey, _ := range intf.IngressTestSets.IngressTestSet {
-					testSetName := getTestSetKeyStrFromOCKey(inTestSetKey.SetName, inTestSetKey.Type)
-					testSetInterfacesMap[testSetName] = append(testSetInterfacesMap[testSetName], *intf.Id)
-					_, ok := testSetTableMap[testSetName]
-					if !ok {
-						if inParams.oper == DELETE {
-							return res_map, tlerr.NotFound("Binding not found for test set  %v on %v", inTestSetKey.SetName, *intf.Id)
-						}
-					}
-					if inParams.oper == DELETE {
-						testSetTableMapNew[testSetName] = db.Value{Field: make(map[string]string)}
-					} else {
-						testSetType := findInMap(TEST_SET_TYPE_MAP, strconv.FormatInt(int64(inTestSetKey.Type), 10))
-						testSetTableMapNew[testSetName] = db.Value{Field: map[string]string{"type": testSetType}}
-					}
+		if intf == nil {
+			continue
+		}
+		if intf.IngressTestSets != nil && len(intf.IngressTestSets.IngressTestSet) > 0 {
+			for inTestSetKey, _ := range intf.IngressTestSets.IngressTestSet {
+				testSetName := getTestSetKeyStrFromOCKey(inTestSetKey.SetName, inTestSetKey.Type)
+				testSetInterfacesMap[testSetName] = append(testSetInterfacesMap[testSetName], *intf.Id)
+				_, ok := testSetTableMap[testSetName]
+				if !ok  && inParams.oper == DELETE {
+					return res_map, tlerr.NotFound("Binding not found for test set  %v on %v", inTestSetKey.SetName, *intf.Id)
 				}
-			} else {
-				for testSetKey, testSetData := range testSetTableMap {
-					ports := testSetData.GetList(TEST_SET_PORTS)
-					if contains(ports, *intf.Id) {
-						testSetInterfacesMap[testSetKey] = append(testSetInterfacesMap[testSetKey], *intf.Id)
-						testSetTableMapNew[testSetKey] = db.Value{Field: make(map[string]string)}
-					}
-
+				if inParams.oper == DELETE {
+					testSetTableMapNew[testSetName] = db.Value{Field: make(map[string]string)}
+				} else {
+					testSetType := findInMap(TEST_SET_TYPE_MAP, strconv.FormatInt(int64(inTestSetKey.Type), 10))
+					testSetTableMapNew[testSetName] = db.Value{Field: map[string]string{"type": testSetType}}
+				}
+			}
+		} else {
+			for testSetKey, testSetData := range testSetTableMap {
+				ports := testSetData.GetList(TEST_SET_PORTS)
+				if contains(ports, *intf.Id) {
+					testSetInterfacesMap[testSetKey] = append(testSetInterfacesMap[testSetKey], *intf.Id)
+					testSetTableMapNew[testSetKey] = db.Value{Field: make(map[string]string)}
 				}
 
 			}
+
 		}
 	}
 	for k, _ := range testSetInterfacesMap {
