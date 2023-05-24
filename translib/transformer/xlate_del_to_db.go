@@ -258,7 +258,6 @@ func yangListDelData(xlateParams xlateToParams, dbDataMap *map[db.DBNum]map[stri
 								}
 							}
 						}
-
 					} // end of if isFirstCall
 				} // end if !subtree case
 				xfmrLogDebug("For URI - %v , table-owner - %v, fillFields - %v", curUri, tblOwner, fillFields)
