@@ -272,7 +272,7 @@ module sonic-test-xfmr {
                                 leaf mode {
                                         type string;
                                 }
-                                leaf description {
+                                leaf interface-description {
                                         type string;
                                 }
                         }
