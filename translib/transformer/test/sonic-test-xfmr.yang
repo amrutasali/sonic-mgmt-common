@@ -12,7 +12,7 @@ module sonic-test-xfmr {
 		"SONiC";
 
 	description
-		"SONIC transformer test yang";
+		"SONIC transformer test yang to exercise traansformer UT";
 
 	revision 2023-04-30 {
 		description
