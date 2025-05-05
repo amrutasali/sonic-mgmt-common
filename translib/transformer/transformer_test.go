@@ -43,15 +43,23 @@ var rclientDBNum map[db.DBNum]*redis.Client
 
 func getDBOptions(dbNo db.DBNum, isWriteDisabled bool) db.Options {
 	var opt db.Options
+	separator := ""
 
-	switch dbNo {
-	case db.ApplDB, db.CountersDB, db.AsicDB, db.FlexCounterDB:
-		opt = getDBOptionsWithSeparator(dbNo, "", ":", ":", isWriteDisabled)
-		break
-	case db.ConfigDB, db.StateDB:
-		opt = getDBOptionsWithSeparator(dbNo, "", "|", "|", isWriteDisabled)
-		break
+	dbName := db.GetDBInstName(dbNo)
+	dbSep, ok := dbConfig.Databases[dbName]["separator"]
+	if ok {
+		separator = dbSep.(string)
 	}
+
+	if separator == "" {
+		switch dbNo {
+		case db.ApplDB, db.CountersDB, db.ErrorDB, db.FlexCounterDB, db.AsicDB, db.LogLevelDB:
+			separator = ":"
+		case db.SnmpDB, db.ConfigDB, db.StateDB, db.EventDB:
+			separator = "|"
+		}
+	}
+	opt = getDBOptionsWithSeparator(dbNo, "", separator, separator, isWriteDisabled)
 
 	return opt
 }

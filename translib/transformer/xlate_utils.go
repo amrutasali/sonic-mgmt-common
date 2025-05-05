@@ -1179,17 +1179,25 @@ func xpathKeyExtractForGet(d *db.DB, ygRoot *ygot.GoStruct, oper Operation, path
 	return retData, err
 }
 
-func dbTableFromUriGet(d *db.DB, ygRoot *ygot.GoStruct, oper Operation, uri string, requestUri string, subOpDataMap map[Operation]*RedisDbMap, txCache interface{}, xfmrTblKeyCache map[string]tblKeyCache) (string, error) {
+func dbTableFromUriGet(d *db.DB, ygRoot *ygot.GoStruct, oper Operation, xpath string, uri string, requestUri string, subOpDataMap map[Operation]*RedisDbMap, txCache interface{}, xfmrTblKeyCache map[string]tblKeyCache) (string, error) {
 	tableName := ""
 	var err error
 	cdb := db.ConfigDB
 	var dbs [db.MaxDB]*db.DB
 
-	xPath, _, _ := XfmrRemoveXPATHPredicates(uri)
-	xpathInfo, ok := xYangSpecMap[xPath]
-	if !ok {
-		log.Warningf("No entry found in xYangSpecMap for xpath %v.", xPath)
+	if len(xpath) == 0 && len(uri) > 0 {
+		xpath, _, _ = XfmrRemoveXPATHPredicates(uri)
+	}
+	xpathInfo, ok := xYangSpecMap[xpath]
+	if !ok || xpathInfo == nil {
+		log.Warningf("No entry found in xYangSpecMap for xpath %v.", xpath)
 		return tableName, err
+	}
+
+	// Static virtual table annotated. Hence return empty table name
+	if xpathInfo.virtualTbl != nil && *xpathInfo.virtualTbl {
+		xfmrLogDebug("virtual table case for uri - %v", uri)
+		return "", nil
 	}
 
 	tblPtr := xpathInfo.tableName
@@ -1198,7 +1206,14 @@ func dbTableFromUriGet(d *db.DB, ygRoot *ygot.GoStruct, oper Operation, uri stri
 	} else if xpathInfo.xfmrTbl != nil {
 		inParams := formXfmrInputRequest(d, dbs, cdb, ygRoot, uri, requestUri, oper, "", nil, subOpDataMap, nil, txCache)
 		tableName, err = tblNameFromTblXfmrGet(*xpathInfo.xfmrTbl, inParams, xfmrTblKeyCache)
+		if inParams.isVirtualTbl != nil && *(inParams.isVirtualTbl) {
+			return "", nil
+		}
+		if err != nil {
+			return "", err
+		}
 	}
+	xfmrLogDebug("returning table-name %v for uri %v", tableName, uri)
 	return tableName, err
 }
 
@@ -1534,7 +1549,7 @@ func formXlateFromDbParams(d *db.DB, dbs [db.MaxDB]*db.DB, cdb db.DBNum, ygRoot 
 	return inParamsForGet
 }
 
-func formXlateToDbParam(d *db.DB, ygRoot *ygot.GoStruct, oper Operation, uri string, requestUri string, xpathPrefix string, keyName string, jsonData interface{}, resultMap map[Operation]RedisDbMap, result map[string]map[string]db.Value, txCache interface{}, tblXpathMap map[string]map[string]map[string]bool, subOpDataMap map[Operation]*RedisDbMap, pCascadeDelTbl *[]string, xfmrErr *error, name string, value interface{}, tableName string, invokeSubtreeOnceMap map[string]map[string]bool, yangDefValMap map[string]map[string]db.Value, yangAuxValMap map[string]map[string]db.Value) xlateToParams {
+func formXlateToDbParam(d *db.DB, ygRoot *ygot.GoStruct, oper Operation, uri string, requestUri string, xpathPrefix string, keyName string, jsonData interface{}, resultMap map[Operation]RedisDbMap, result map[string]map[string]db.Value, txCache interface{}, tblXpathMap map[string]map[string]map[string]bool, subOpDataMap map[Operation]*RedisDbMap, pCascadeDelTbl *[]string, xfmrErr *error, name string, value interface{}, tableName string, isNotTblOwner bool, invokeSubtreeOnceMap map[string]map[string]bool, yangDefValMap map[string]map[string]db.Value, yangAuxValMap map[string]map[string]db.Value, replaceInfo *replaceProcessingInfo) xlateToParams {
 	var inParamsForSet xlateToParams
 	inParamsForSet.d = d
 	inParamsForSet.ygRoot = ygRoot
@@ -1554,9 +1569,11 @@ func formXlateToDbParam(d *db.DB, ygRoot *ygot.GoStruct, oper Operation, uri str
 	inParamsForSet.name = name
 	inParamsForSet.value = value
 	inParamsForSet.tableName = tableName
+	inParamsForSet.isNotTblOwner = isNotTblOwner
 	inParamsForSet.invokeCRUSubtreeOnceMap = invokeSubtreeOnceMap
 	inParamsForSet.yangDefValMap = yangDefValMap
 	inParamsForSet.yangAuxValMap = yangAuxValMap
+	inParamsForSet.replaceInfo = replaceInfo
 	return inParamsForSet
 }
 

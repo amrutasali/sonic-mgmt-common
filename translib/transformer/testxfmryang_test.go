@@ -211,50 +211,117 @@ func Test_node_with_child_tableXfmr_keyXfmr_fieldNameXfmrs_nonConfigDB_data(t *t
 }
 
 func Test_node_exercising_tableXfmr_virtual_table_and_validate_handler(t *testing.T) {
+	/* verify if replace at a higher level yang node  happens correctly when replacing nodes having table-xfmr, virtual-table and validate handler annotation in child yang hierachy */
+	prereq_ni_instance := map[string]interface{}{"TEST_VRF": map[string]interface{}{"default": map[string]interface{}{"enabled": "true"},
+		"Vrf_01": map[string]interface{}{"enabled": "false"}, "Vrf_02": map[string]interface{}{"enabled": "false", "description": "Vrf_02 descrip"},
+		"Vrf_03": map[string]interface{}{"enabled": "true"}}}
+	prereq_bgp := map[string]interface{}{"TEST_BGP_NETWORK_CFG": map[string]interface{}{"Vrf_01|22": map[string]interface{}{"backdoor": "true", "policy-name": "abcd"},
+		"Vrf_01|33":  map[string]interface{}{"backdoor": "false", "policy-name": "xyzefgh"},
+		"Vrf_02|101": map[string]interface{}{"backdoor": "false"}}}
+	prereq_ospfv2_router := map[string]interface{}{"TEST_OSPFV2_ROUTER": map[string]interface{}{"Vrf_01": map[string]interface{}{"enabled": "true", "write-multiplier": "2"},
+		"Vrf_02": map[string]interface{}{"enabled": "true"},
+		"Vrf_03": map[string]interface{}{"write-multiplier": "5"}}}
+	prereq_ospfv2_router_distribution := map[string]interface{}{"TEST_OSPFV2_ROUTER_DISTRIBUTION": map[string]interface{}{"Vrf_01|66": map[string]interface{}{"priority": "3"},
+		"Vrf_01|98": map[string]interface{}{"priority": "56", "table-id": "4"}, "Vrf_03|79": map[string]interface{}{"priority": "7", "table-id": "74"}}}
+
+	cleanuptbl := map[string]interface{}{"TEST_VRF": map[string]interface{}{"default": "", "Vrf_01": "", "Vrf_02": "", "Vrf_03": ""},
+		"TEST_BGP_NETWORK_CFG":            map[string]interface{}{"Vrf_01|22": "", "Vrf_01|33": "", "Vrf_02|101": "", "Vrf_02|55": ""},
+		"TEST_OSPFV2_ROUTER":              map[string]interface{}{"Vrf_01": "", "Vrf_02": "", "Vrf_03": ""},
+		"TEST_OSPFV2_ROUTER_DISTRIBUTION": map[string]interface{}{"Vrf_01|66": "", "Vrf_01|98": "", "Vrf_02|81": "", "Vrf_03|79": ""}}
+
+	//Setup
+	loadDB(db.ConfigDB, prereq_ni_instance)
+	loadDB(db.ConfigDB, prereq_bgp)
+	loadDB(db.ConfigDB, prereq_ospfv2_router)
+	loadDB(db.ConfigDB, prereq_ospfv2_router_distribution)
+
+	t.Log("+++++++++++++++++ Test replace at high level in yang hierachy involing table-xfmr, virtual-table and validate handler annotations +++++++++++++++")
+	url := "/openconfig-test-xfmr:test-xfmr/test-ni-instances/test-ni-instance"
+	//TODOswag
+	url_body_json := "{\"openconfig-test-xfmr:test-ni-instance\":[{\"ni-name\":\"default\", \"config\": {\"ni-name\":\"default\", \"enabled\":true}}" +
+		",{\"ni-name\":\"vrf-01\", \"config\": {\"ni-name\":\"vrf-01\", \"enabled\":true}},{\"ni-name\":\"vrf-02\", \"config\": {\"ni-name\":\"vrf-02\", \"enabled\":true}}" +
+		"]}"
+	empty_expected := map[string]interface{}{}
+	expected_ni_instance_default := map[string]interface{}{"TEST_VRF": map[string]interface{}{"default": map[string]interface{}{"enabled": "true"}}}
+	expected_ni_instance_vrf_01 := map[string]interface{}{"TEST_VRF": map[string]interface{}{"Vrf_01": map[string]interface{}{"enabled": "true", "description": "Vrf_01 descrip"}}}
+	expected_ni_instance_vrf_02 := map[string]interface{}{"TEST_VRF": map[string]interface{}{"Vrf_02": map[string]interface{}{"enabled": "true"}}}
+	expected_bgp_vrf_01_22 := map[string]interface{}{"TEST_BGP_NETWORK_CFG": map[string]interface{}{"Vrf_01|22": map[string]interface{}{"backdoor": "false", "policy-name": "defgh"}}}
+	expected_bgp_vrf_01_33 := map[string]interface{}{"TEST_BGP_NETWORK_CFG": map[string]interface{}{"Vrf_01|55": map[string]interface{}{"policy-name": "fgh"}}}
+	expected_ospfv2_router_vrf_01 := map[string]interface{}{"TEST_OSPFV2_ROUTER": map[string]interface{}{"Vrf_01": map[string]interface{}{"enabled": "true", "write-multiplier": "3"}}}
+	expected_ospfv2_router_distribution_vrf_01_66 := map[string]interface{}{"TEST_OSPFV2_ROUTER_DISTRIBUTION": map[string]interface{}{"Vrf_01|66": map[string]interface{}{"priority": "6"}}}
+	expected_ospfv2_router_distribution_vrf_02_81 := map[string]interface{}{"TEST_OSPFV2_ROUTER_DISTRIBUTION": map[string]interface{}{"Vrf_02|81": map[string]interface{}{"priority": "9", "table-id": "67"}}}
+	t.Run("Replace at high level in yang hierachy involing table-xfmr, virtual-table and validate handler annotations.", processSetRequest(url, url_body_json, "PUT", false))
+	time.Sleep(1 * time.Second)
+	verifyDbResultArray := [15]verifyDbResultData{
+		{test: "Verify default ni-instance in request payload is present in db with data matching payload.", db_key: "TEST_VRF|default", db_result: expected_ni_instance_default},
+		{test: "Verify vrf_01 ni-instance in request payload is present in db with data matching payload.", db_key: "TEST_VRF|Vrf_01", db_result: expected_ni_instance_vrf_01},
+		{test: "Verify vrf_02 ni-instance in request payload is present in db with data matching payload.", db_key: "TEST_VRF|Vrf_02", db_result: expected_ni_instance_vrf_02},
+		{test: "Verify vrf_03 ni-instance absent in request payload is deleted from db.", db_key: "TEST_VRF|Vrf_03", db_result: empty_expected},
+		{test: "Verify bgp instance(vrf-01|22) assocaited with ni-instance in request is present in db with data matching payload.", db_key: "TEST_BGP_NETWORK_CFG|Vrf_01|22", db_result: expected_bgp_vrf_01_22},
+		{test: "Verify bgp instance(vrf-01|33) assocaited with ni-instance in request is present in db with data matching payload.", db_key: "TEST_BGP_NETWORK_CFG|Vrf_01|33", db_result: expected_bgp_vrf_01_33},
+		{test: "Verify bgp instance(vrf-02|55) absent in request payload is deleted from db.", db_key: "TEST_BGP_NETWORK_CFG|Vrf_02|55", db_result: empty_expected},
+		{test: "Verify bgp instance(vrf-02|101 absent in request payload is deleted from db.", db_key: "TEST_BGP_NETWORK_CFG|Vrf_02|101", db_result: empty_expected},
+		{test: "Verify ospfv2 global/router(vrf-01) assocaited with ni-instance in request is present in db with data matching payload.", db_key: "TEST_OSPFV2_ROUTER|Vrf_01", db_result: expected_ospfv2_router_vrf_01},
+		{test: "Verify ospfv2 global/router(vrf-02) assocaited with ni-instance in request is present in db with data matching payload.", db_key: "TEST_OSPFV2_ROUTER|Vrf_02", db_result: expected_ospfv2_router_vrf_02},
+		{test: "Verify ospfv2 global/router(vrf-03) absent in request payload is deleted from db.", db_key: "TEST_OSPFV2_ROUTER|Vrf_03", db_result: empty_expected},
+		{test: "Verify ospfv2 router distribution(vrf-01|66) assocaited with ni-instance in request is present in db with data matching payload.", db_key: "TEST_OSPFV2_ROUTER_DISTRIBUTION|Vrf_01|66", db_result: expected_ospfv2_router_distribution_vrf_01_66},
+		{test: "Verify ospfv2 router distribution(vrf-01|98) absent in request payload is deleted from db.", db_key: "TEST_OSPFV2_ROUTER_DISTRIBUTION|Vrf_01|98", db_result: empty_expected},
+		{test: "Verify ospfv2 router distribution(vrf-02|81) assocaited with ni-instance in request is created in db with data matching payload.", db_key: "TEST_OSPFV2_ROUTER_DSTRIBUTION|Vrf_02|81", db_result: expected_ospfv2_router_distribution_vrf_02_81},
+		{test: "Verify ospfv2 router distribution(vrf-03|79) absent in request payload is deleted from db.", db_key: "TEST_OSPFV2_ROUTER_DSTRIBUTION|Vrf_03|79", db_result: empty_expected},
+	}
+	time.Sleep(1 * time.Second)
+	for _, data := range verifyDbResultArray {
+		t.Run(data.test, verifyDbResult(rclient, data.db_key, data.db_result, false))
+	}
+	//Tear down
+	unloadDB(db.ConfigDB, cleanuptbl)
+
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// working DELETE ///////////////////
 	/* verify if get like traversal happens correctly when deleting a node having table-xfmr, virtual-table and validate handler annotation in child yang hierachy */
 	t.Log("+++++++++++++++++ Test delete in yang hierachy involing table-xfmr, virtual-table and validate handler annotations +++++++++++++++")
-	prereq_ni_instance := map[string]interface{}{"TEST_VRF": map[string]interface{}{"default": map[string]interface{}{"enabled": "true"},
-		"Vrf_01": map[string]interface{}{"enabled": "false"}, "Vrf_02": map[string]interface{}{"enabled": "true"}}}
-	prereq_bgp := map[string]interface{}{"TEST_BGP_NETWORK_CFG": map[string]interface{}{"Vrf_01|22": map[string]interface{}{"backdoor": "true", "policy-name": "abcd"},
+	prereq_ni_instance = map[string]interface{}{"TEST_VRF": map[string]interface{}{"default": map[string]interface{}{"enabled": "true"},
+		, "Vrf_02": map[string]interface{}{"enabled": "true"}}}
+	prereq_bgp = map[string]interface{}{"TEST_BGP_NETWORK_CFG": map[string]interface{}{"Vrf_01|22": map[string]interface{}{"backdoor": "true", "policy-name": "abcd"},
 		"Vrf_01|33": map[string]interface{}{"policy-name": "fgh"}, "Vrf_02|55": map[string]interface{}{"backdoor": "false"}}}
-	prereq_ospfv2_router := map[string]interface{}{"TEST_OSPFV2_ROUTER": map[string]interface{}{"Vrf_01": map[string]interface{}{"enabled": "true", "write-multiplier": "2"},
+	prereq_ospfv2_router = map[string]interface{}{"TEST_OSPFV2_ROUTER": map[string]interface{}{"Vrf_01": map[string]interface{}{"enabled": "true", "write-multiplier": "2"},
 		"Vrf_02": map[string]interface{}{"enabled": "true"}}}
-	prereq_ospfv2_router_distribution := map[string]interface{}{"TEST_OSPFV2_ROUTER_DISTRIBUTION": map[string]interface{}{"Vrf_01|66": map[string]interface{}{"priority": "6"},
+	prereq_ospfv2_router_distribution = map[string]interface{}{"TEST_OSPFV2_ROUTER_DISTRIBUTION": map[string]interface{}{"Vrf_01|66": map[string]interface{}{"priority": "6"},
 		"Vrf_01|98": map[string]interface{}{"table-id": "4"}, "Vrf_02|81": map[string]interface{}{"priority": "9", "table-id": "67"}}}
-	cleanuptbl := map[string]interface{}{"TEST_VRF": map[string]interface{}{"default": "", "Vrf_01": "", "Vrf_02": ""},
-		"TEST_BGP_NETWORK_CFG":            map[string]interface{}{"Vrf_01|22": "", "Vrf_01|33": "", "Vrf_02|55": ""},
-		"TEST_OSPFV2_ROUTER":              map[string]interface{}{"Vrf_01": "", "Vrf_02": ""},
-		"TEST_OSPFV2_ROUTER_DISTRIBUTION": map[string]interface{}{"Vrf_01|66": "", "Vrf_01|98": "", "Vrf_02|81": ""}}
+
 	//Setup
 	loadDB(db.ConfigDB, prereq_ni_instance)
 	loadDB(db.ConfigDB, prereq_bgp)
 	loadDB(db.ConfigDB, prereq_ospfv2_router)
 	loadDB(db.ConfigDB, prereq_ospfv2_router_distribution)
 	url := "/openconfig-test-xfmr:test-xfmr/test-ni-instances/test-ni-instance[ni-name=vrf-01]/test-protocols"
-	expected_ni_instance_vrf_01 := map[string]interface{}{"TEST_VRF": map[string]interface{}{"Vrf_01": map[string]interface{}{"enabled": "false"}}}
-	expected_ni_instance_default := map[string]interface{}{"TEST_VRF": map[string]interface{}{"default": map[string]interface{}{"enabled": "true"}}}
-	expected_ni_instance_vrf_02 := map[string]interface{}{"TEST_VRF": map[string]interface{}{"Vrf_02": map[string]interface{}{"enabled": "true"}}}
-	expected_bgp := map[string]interface{}{"TEST_BGP_NETWORK_CFG": map[string]interface{}{"Vrf_02|55": map[string]interface{}{"backdoor": "false"}}}
-	expected_ospfv2_router := map[string]interface{}{"TEST_OSPFV2_ROUTER": map[string]interface{}{"Vrf_02": map[string]interface{}{"enabled": "true"}}}
-	expected_ospfv2_router_distribution := map[string]interface{}{"TEST_OSPFV2_ROUTER_DISTRIBUTION": map[string]interface{}{"Vrf_02|81": map[string]interface{}{"priority": "9", "table-id": "67"}}}
-	empty_expected := make(map[string]interface{})
+	expected_ni_instance_vrf_01 = map[string]interface{}{"TEST_VRF": map[string]interface{}{"Vrf_01": map[string]interface{}{"enabled": "false"}}}
+	expected_ni_instance_default = map[string]interface{}{"TEST_VRF": map[string]interface{}{"default": map[string]interface{}{"enabled": "true"}}}
+	expected_ni_instance_vrf_02 = map[string]interface{}{"TEST_VRF": map[string]interface{}{"Vrf_02": map[string]interface{}{"enabled": "false", "description": "Vrf_02 descrip"}}}
+	expected_ni_instance_vrf_03 = map[string]interface{}{"TEST_VRF": map[string]interface{}{"Vrf_03": map[string]interface{}{"enabled": "true"}}}
+	expected_bgp = map[string]interface{}{"TEST_BGP_NETWORK_CFG": map[string]interface{}{"Vrf_02|101": map[string]interface{}{"backdoor": "false"}}}
+	expected_ospfv2_router_vrf_02 = map[string]interface{}{"TEST_OSPFV2_ROUTER": map[string]interface{}{"Vrf_02": map[string]interface{}{"enabled": "true"}}}
+	expected_ospfv2_router_vrf_03 = map[string]interface{}{"TEST_OSPFV2_ROUTER": map[string]interface{}{"Vrf_03": map[string]interface{}{"write-multiplier": "5"}}}
+	expected_ospfv2_router_distribution = map[string]interface{}{"TEST_OSPFV2_ROUTER_DISTRIBUTION": map[string]interface{}{"Vrf_03|79": map[string]interface{}{"priority": "7", "table-id": "74"}}}
 	t.Run("Delete in yang hierachy involing table-xfmr, virtual-table and validate handler annotations.", processDeleteRequest(url, false))
 	time.Sleep(1 * time.Second)
 	verifyDbResultList := [11]verifyDbResultData{
 		{test: "Verify ni-instance in request URL(vrf-01) is not deleted from db since URL points to child node.", db_key: "TEST_VRF|Vrf_01", db_result: expected_ni_instance_vrf_01},
 		{test: "Verify default ni-instance not assocaited with ni-instance in request URL is retained in db.", db_key: "TEST_VRF|default", db_result: expected_ni_instance_default},
 		{test: "Verify Vrf_02 ni-instance not assocaited with ni-instance in request URL is retained in db.", db_key: "TEST_VRF|Vrf_02", db_result: expected_ni_instance_vrf_02},
+		{test: "Verify Vrf_03 ni-instance not assocaited with ni-instance in request URL is retained in db.", db_key: "TEST_VRF|Vrf_03", db_result: expected_ni_instance_vrf_03},
 		{test: "Verify delete of bgp instance(vrf-01|22) assocaited with ni-instance in request URL is deleted from db.", db_key: "TEST_BGP_NETWORK_CFG|Vrf_01|22", db_result: empty_expected},
 		{test: "Verify delete of bgp instance(vrf-01|33) assocaited with ni-instance in request URL is deleted from db.", db_key: "TEST_BGP_NETWORK_CFG|Vrf_01|33", db_result: empty_expected},
 		{test: "Verify bgp instance(vrf-02|55) not assocaited with ni-instance in request URL is retained in db.", db_key: "TEST_BGP_NETWORK_CFG|Vrf_02|55", db_result: expected_bgp},
 		{test: "Verify ospfv2-global/router instance(vrf-01) assocaited with ni-instance in request URL is deleted from db.", db_key: "TEST_OSPFV2_ROUTER|Vrf_01", db_result: empty_expected},
 		{test: "Verify ospfv2-global/router instance(vrf-02) not assocaited with ni-instance in request URL is retained in db.", db_key: "TEST_OSPFV2_ROUTER|Vrf_02",
-			db_result: expected_ospfv2_router},
+			db_result: expected_ospfv2_router_vrf_02},
+		{test: "Verify ospfv2-global/router instance(vrf-03) not assocaited with ni-instance in request URL is retained in db.", db_key: "TEST_OSPFV2_ROUTER|Vrf_03",
+			db_result: expected_ospfv2_router_vrf_03},
 		{test: "Verify ospfv2-router-distribution instance(vrf-01|66) assocaited with ni-instance in request URL is deleted from db.", db_key: "TEST_OSPFV2_ROUTER_DISTRIBUTION|Vrf_01|66",
 			db_result: empty_expected},
 		{test: "Verify ospfv2-router-distribution instance(vrf-01|98) assocaited with ni-instance in request URL is deleted from db.", db_key: "TEST_OSPFV2_ROUTER_DISTRIBUTION|Vrf_01|98",
 			db_result: empty_expected},
-		{test: "Verify ospfv2-router-distribution instance(vrf-02|81) not assocaited with ni-instance in request URL is retained in db.", db_key: "TEST_OSPFV2_ROUTER_DISTRIBUTION|Vrf_02|81",
+		{test: "Verify ospfv2-router-distribution instance(vrf-03|79) not assocaited with ni-instance in request URL is retained in db.", db_key: "TEST_OSPFV2_ROUTER_DISTRIBUTION|Vrf_03|79",
 			db_result: expected_ospfv2_router_distribution},
 	}
 	for _, data := range verifyDbResultList {
@@ -265,14 +332,23 @@ func Test_node_exercising_tableXfmr_virtual_table_and_validate_handler(t *testin
 }
 
 func Test_node_exercising_non_table_owner_annotation(t *testing.T) {
-
-	prereq := map[string]interface{}{"DEVICE_ZONE_METADATA": map[string]interface{}{"local-zonehost": map[string]interface{}{"metric": "32", "hwsku": "testhwsku", "deployment-id": "834"}}}
+	prereq := map[string]interface{}{"DEVICE_ZONE_METADATA": map[string]interface{}{"local-zonehost": map[string]interface{}{"metric": "2", "hold-interval": "97",
+		"hwsku": "testhwsku", "deployment-id": "834"}}}
 	cleanuptbl := map[string]interface{}{"DEVICE_ZONE_METADATA": map[string]interface{}{"local-zonehost": ""}}
-	expected_map := map[string]interface{}{"DEVICE_ZONE_METADATA": map[string]interface{}{"local-zonehost": map[string]interface{}{"hwsku": "testhwsku", "deployment-id": "834"}}}
+	expected_map := map[string]interface{}{"DEVICE_ZONE_METADATA": map[string]interface{}{"local-zonehost": map[string]interface{}{"metric": "32", "hwsku": "testhwsku", "deployment-id": "834"}}}
 	url := "/openconfig-test-xfmr:test-xfmr/test-sets/system-zone-device-data"
+	url_body_json := "{\"openconfig-test-xfmr:system-zone-device-data\":{\"config\":{\"metric\":32}}}"
+	t.Log("++++++++++++++  Test_replace_on_node_exercising_non_table_owner_annotation  +++++++++++++")
+	t.Run("Replace on node exercising non table owner annotation.", processSetRequest(url, url_body_json, "PUT", false, nil))
+	time.Sleep(1 * time.Second)
+	t.Run("Verify replace on node exercising non table owner annotation.", verifyDbResult(rclient, "DEVICE_ZONE_METADATA|local-zonehost", expected_map, false))
 	t.Log("++++++++++++++  Test_delete_on_node_exercising_non_table_owner_annotation  +++++++++++++")
-	prereq = map[string]interface{}{"DEVICE_ZONE_METADATA": map[string]interface{}{"local-zonehost": map[string]interface{}{"metric": "32", "hwsku": "testhwsku", "deployment-id": "834"}}}
-	cleanuptbl = map[string]interface{}{"DEVICE_ZONE_METADATA": map[string]interface{}{"local-zonehost": ""}}
+	//TearDown
+	unloadDB(db.ConfigDB, cleanuptbl)
+
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// working DELETE
+	t.Log("++++++++++++++  Test_delete_on_node_exercising_non_table_owner_annotation  +++++++++++++")
+	url = "/openconfig-test-xfmr:test-xfmr/test-sets/system-zone-device-data"
 	expected_map = map[string]interface{}{"DEVICE_ZONE_METADATA": map[string]interface{}{"local-zonehost": map[string]interface{}{"hwsku": "testhwsku", "deployment-id": "834"}}}
 	// Setup
 	loadDB(db.ConfigDB, prereq)
@@ -284,21 +360,28 @@ func Test_node_exercising_non_table_owner_annotation(t *testing.T) {
 }
 
 func Test_node_exercising_subset_of_fields_in_mapped_table(t *testing.T) {
-
-	prereq_ni_instance := map[string]interface{}{"TEST_VRF": map[string]interface{}{"Vrf_01": map[string]interface{}{"enabled": "true"}}}
+    prereq_ni_instance := map[string]interface{}{"TEST_VRF": map[string]interface{}{"Vrf_01": map[string]interface{}{"enabled": "true"}}}
 	prereq_ospfv2_router := map[string]interface{}{"TEST_OSPFV2_ROUTER": map[string]interface{}{"Vrf_01": map[string]interface{}{"enabled": "true", "write-multiplier": "2",
 		"initial-delay": "40", "max-delay": "100"}}}
 	cleanuptbl := map[string]interface{}{"TEST_VRF": map[string]interface{}{"Vrf_01": ""},
 		"TEST_OSPFV2_ROUTER": map[string]interface{}{"Vrf_01": ""}}
-	expected_ospfv2_router := map[string]interface{}{"TEST_OSPFV2_ROUTER": map[string]interface{}{"Vrf_01": map[string]interface{}{"enabled": "true", "write-multiplier": "2",
+		expected_ospfv2_router := map[string]interface{}{"TEST_OSPFV2_ROUTER": map[string]interface{}{"Vrf_01": map[string]interface{}{"enabled": "true", "write-multiplier": "2",
 		"initial-delay": "50"}}}
-	url := "/openconfig-test-xfmr:test-xfmr/test-ni-instances/ni-instance[ni-name=vrf-01]/test-protocols/test-protocol[name=ospfv2]/ospfv2/" +
-		"global/timers/config"
+    url := "/openconfig-test-xfmr:test-xfmr/test-ni-instances/ni-instance[ni-name=vrf-01]/test-protocols/test-protocol[name=ospfv2]/ospfv2/" +
+	       "global/timers"
+    url_body_json := "{\"openconfig-test-xfmr:timers\":{\"config\":{\"initial-delay\":50}}}"
+    // Setup
+    loadDB(db.ConfigDB, prereq_ni_instance)
+    loadDB(db.ConfigDB, prereq_ospfv2_router)
+    t.Log("++++++++++++++  Test_replace_on_node_exercising_subset_of_fields_in_mapped_table  +++++++++++++")
+    t.Run("Replace on node exercising subset of fields in mapped table.", processSetRequest(url, url_body_json, "PUT", false, nil))
+    time.Sleep(1 * time.Second)
+	t.Run("Verify replace on node exercising subset of fields in mapped table.", verifyDbResult(rclient, "TEST_OSPFV2_ROUTER|Vrf_01", expected_ospfv2_router, false))
+	//TearDown
+	unloadDB(db.ConfigDB, cleanuptbl)
 
+	////////////////////////////////////////////////////////////////////////////// working DELETE
 	t.Log("++++++++++++++  Test_delete_on_node_exercising_subset_of_fields_in_mapped_table  +++++++++++++")
-	prereq_ni_instance = map[string]interface{}{"TEST_VRF": map[string]interface{}{"Vrf_01": map[string]interface{}{"enabled": "true"}}}
-	prereq_ospfv2_router = map[string]interface{}{"TEST_OSPFV2_ROUTER": map[string]interface{}{"Vrf_01": map[string]interface{}{"enabled": "true", "write-multiplier": "2",
-		"initial-delay": "50"}}}
 	cleanuptbl = map[string]interface{}{"TEST_VRF": map[string]interface{}{"Vrf_01": ""},
 		"TEST_OSPFV2_ROUTER": map[string]interface{}{"Vrf_01": ""}}
 	expected_ospfv2_router = map[string]interface{}{"TEST_OSPFV2_ROUTER": map[string]interface{}{"Vrf_01": map[string]interface{}{"enabled": "true", "write-multiplier": "2"}}}
