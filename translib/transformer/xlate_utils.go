@@ -3044,3 +3044,150 @@ func applyValueXfmronDbMapForNestedList(tblName string, fld string, val string, 
 	}
 	return nil
 }
+
+func (subOpDataMap subOpDataMapType) String() string {
+	subOpDataMapStr := ""
+	if subOpDataMap == nil {
+		subOpDataMapStr = "subOpDataMap - nil"
+		return subOpDataMapStr
+	}
+	for oper, subOpMap := range subOpDataMap {
+		if _, configDbOk := (*subOpMap)[db.ConfigDB]; configDbOk {
+			subOpDataMapStr += fmt.Sprintf("subOpDataMap[%v][configDB] - %v ", oper, (*subOpMap)[db.ConfigDB])
+		}
+	}
+	return subOpDataMapStr
+}
+
+func allocateSubOpDataMapForOper(subOpDataMap map[Operation]*RedisDbMap, oper Operation) {
+	var operMap RedisDbMap
+	var subOpMap *RedisDbMap
+	var operOk bool
+
+	if subOpDataMap == nil {
+		xfmrLogInfo("subOpDataMap is not allocated.")
+		return
+	}
+	if subOpMap, operOk = subOpDataMap[oper]; !operOk {
+		operMap = make(RedisDbMap)
+		subOpMap = &operMap
+		subOpDataMap[oper] = subOpMap
+	}
+	if _, configDbOk := (*subOpMap)[db.ConfigDB]; !configDbOk {
+		(*subOpMap)[db.ConfigDB] = make(map[string]map[string]db.Value)
+	}
+}
+
+func instanceExistsinResultMap(tableName string, dbKey string, resultMap map[Operation]RedisDbMap) (bool, Operation) {
+	// This function is called only for isDeleteForReplace case and checks if the table,dbKey and field is already present in replaceResultMap
+	//Inputs - table, dbKey and fieldName that needs to be verified if available in replaceResultMap, resultMap (having consolidated result and subOpMap from REPLACE
+	// Output - bool indicating add to delete resultMap required or not, bool to indicate skipSiblingTraversal for the field in input param
+	instFound := false
+	var opFound Operation
+
+	// Check if table instance exists in resultMap
+	for op, redisMap := range resultMap {
+		for dbNum, dbMap := range redisMap {
+			if dbNum != db.ConfigDB {
+				continue
+			}
+			// Check if dbKey instance exists in resultMap
+			for tbl, instMap := range dbMap {
+				if tbl != tableName {
+					// If table not found continue to loop to chk if tableName exists for other opers in replaceResultMap
+					continue
+				} else {
+					for key := range instMap {
+						if key != dbKey {
+							// If instance not found continue to loop to check if dbKey exists for other instnces replaceResultMap
+							continue
+						} else {
+							// Instance found in replaceResultMap
+							instFound = true
+							opFound = op
+							break
+						}
+					}
+				}
+			}
+		}
+	}
+	return instFound, opFound
+}
+
+func fieldExistsinResultMap(tableName string, dbKey string, field string, resultMap map[Operation]RedisDbMap, instExists bool, opFound Operation) (bool, bool) {
+	// This function is called only for isDeleteForReplace case and checks if the table,dbKey and field is already present in replaceResultMap
+	//Inputs - table, dbKey and fieldName that needs to be verified if available in replaceResultMap, resultMap (having consolidated result and subOpMap from REPLACE
+	// Output - bool indicating add to delete resultMap required or not, bool to indicate skipSiblingTraversal for the field in input param
+	instFound := false
+	fieldFound := false
+	var op Operation
+	if !instExists {
+		instFound, op = instanceExistsinResultMap(tableName, dbKey, resultMap)
+	} else {
+		instFound = instExists
+		op = opFound
+	}
+	if instFound {
+		fieldVal := resultMap[op][db.ConfigDB][tableName][dbKey]
+		for fld := range fieldVal.Field {
+			if fld == field {
+				fieldFound = true
+				break
+			}
+		}
+	} else {
+		return false, false
+	}
+	return instFound, fieldFound
+}
+
+func mergeSubOpMapWithResultForReplace(resultMap map[Operation]RedisDbMap, result map[string]map[string]db.Value, subOpDataMap map[Operation]*RedisDbMap) {
+	//This function merges the subopMap and inifra generated replace payload infra generated map into the resultMap
+	if len(result) > 0 || len(subOpDataMap) > 0 {
+		// Initially copy the result generated after REPLACE payload processing to resultMap[REPLACE]
+		if _, ok := resultMap[REPLACE]; !ok { //ideally will never be pre-allocated but stil adding safety check
+			resultMap[REPLACE] = make(RedisDbMap)
+		}
+		resultMap[REPLACE][db.ConfigDB] = result
+
+		// Merge the SubopMap data generated after Replace payload processsing into resultMap
+		// First merge the REPLACE maps. If conflicting data found, subopMap data as filled by the applications will be given preference. Hence mapCopy is done here.
+		// Replace data merging is done first to consolidate the results before merging of other operations.
+
+		for op, redisMapPtr := range subOpDataMap {
+			if redisMapPtr != nil {
+				for dbNum, dbMap := range *redisMapPtr {
+					if dbNum != db.ConfigDB {
+						continue
+					}
+					if op == REPLACE {
+						mapCopy(resultMap[REPLACE][db.ConfigDB], dbMap)
+					} else {
+						continue
+					}
+				}
+			}
+		}
+
+		// Merge the subopMap to the resultMap for CREATE, UPDATE and DELETE operations
+		// Replace data merging is taken care above. Hence skip it.
+		var operList []Operation = []Operation{UPDATE, CREATE, DELETE}
+		for _, op := range operList {
+			if redisMapPtr, ok := subOpDataMap[op]; ok && redisMapPtr != nil {
+				for dbNum, dbMap := range *redisMapPtr {
+					if dbNum != db.ConfigDB {
+						continue
+					}
+					if _, ok := resultMap[op]; !ok {
+						resultMap[op] = make(RedisDbMap)
+					}
+					if _, ok := resultMap[op][dbNum]; !ok {
+						resultMap[op][dbNum] = make(map[string]map[string]db.Value)
+					}
+					mapMergeAcrossOperations(resultMap, dbMap, op)
+				}
+			}
+		}
+	}
+}
