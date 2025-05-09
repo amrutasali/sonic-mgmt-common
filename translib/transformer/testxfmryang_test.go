@@ -236,9 +236,24 @@ func Test_node_exercising_tableXfmr_virtual_table_and_validate_handler(t *testin
 	t.Log("+++++++++++++++++ Test replace at high level in yang hierachy involing table-xfmr, virtual-table and validate handler annotations +++++++++++++++")
 	url := "/openconfig-test-xfmr:test-xfmr/test-ni-instances/test-ni-instance"
 	//TODOswag
-	url_body_json := "{\"openconfig-test-xfmr:test-ni-instance\":[{\"ni-name\":\"default\", \"config\": {\"ni-name\":\"default\", \"enabled\":true}}" +
-		",{\"ni-name\":\"vrf-01\", \"config\": {\"ni-name\":\"vrf-01\", \"enabled\":true}},{\"ni-name\":\"vrf-02\", \"config\": {\"ni-name\":\"vrf-02\", \"enabled\":true}}" +
-		"]}"
+	url_body_json := "{ \"openconfig-test-xfmr:test-ni-instance\": [ { \"ni-name\": \"default\"," +
+		" \"config\": { \"ni-name\": \"default\", \"enabled\": true } }, { \"ni-name\":" +
+		" \"Vrf_02\", \"config\": { \"ni-name\": \"Vrf_02\", \"enabled\": true }, " +
+		"\"test-protocols\": { \"test-protocol\": [ {\t\t \"name\": \"ospfv2\", \"config\":" +
+		" { \"name\": \"ospfv2\" },\t\t \"ospfv2\": { \"global\": { \"config\": { \"enabled\":" +
+		" true }, \"route-distribution-lists\": { \"route-distribution-list\": " +
+		"[ { \"distribution-id\": 81, \"config\": { \"distribution-id\": 81, \"priority\": 9," +
+		"\"table-id\": 67 } } ] } } }\t\t } ] } }, { \"ni-name\": \"Vrf_01\", \"config\": " +
+		"{ \"ni-name\": \"Vrf_01\", \"enabled\": true, \"description\": \"Vrf_01 descrip\" }, " +
+		"\"test-protocols\": { \"test-protocol\": [ { \"name\": \"bgp\", \"config\": { \"name\":" +
+		" \"bgp\" }, \"bgp\": { \"network-cfgs\": { \"network-cfg\": [ { \"network-id\": 22, " +
+		"\"config\": { \"network-id\": 22, \"policy-name\": \"defgh\", \"backdoor\": false } }," +
+		" { \"network-id\": 33, \"config\": { \"network-id\": 33, \"policy-name\": \"fgh\" } } ]" +
+		" } } },\t\t {\t\t \"name\": \"ospfv2\", \"config\": { \"name\": \"ospfv2\" },\"ospfv2\":" +
+		" { \"global\": { \"config\": { \"enabled\": true, \"write-multiplier\": 3 }, " +
+		"\"route-distribution-lists\": { \"route-distribution-list\": [ { \"distribution-id\": 66, " +
+		"\"config\": { \"distribution-id\": 66, \"priority\": 6 } } ] } } }\t\t } ] }"
+
 	empty_expected := map[string]interface{}{}
 	expected_ni_instance_default := map[string]interface{}{"TEST_VRF": map[string]interface{}{"default": map[string]interface{}{"enabled": "true"}}}
 	expected_ni_instance_vrf_01 := map[string]interface{}{"TEST_VRF": map[string]interface{}{"Vrf_01": map[string]interface{}{"enabled": "true", "description": "Vrf_01 descrip"}}}
